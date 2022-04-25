@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "socks5-proto",
+    "socks5-server",
+]
