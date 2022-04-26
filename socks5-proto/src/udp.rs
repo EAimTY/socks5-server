@@ -1,6 +1,6 @@
-use crate::{Address, Error};
+use crate::Address;
 use bytes::{BufMut, BytesMut};
-use std::io::Result as IoResult;
+use std::io::Result;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// SOCKS5 UDP packet header
@@ -23,7 +23,7 @@ impl UdpHeader {
         Self { frag, address }
     }
 
-    pub async fn read_from<R>(r: &mut R) -> Result<Self, Error>
+    pub async fn read_from<R>(r: &mut R) -> Result<Self>
     where
         R: AsyncRead + Unpin,
     {
@@ -36,7 +36,7 @@ impl UdpHeader {
         Ok(Self { frag, address })
     }
 
-    pub async fn write_to<W>(&self, w: &mut W) -> IoResult<()>
+    pub async fn write_to<W>(&self, w: &mut W) -> Result<()>
     where
         W: AsyncWrite + Unpin,
     {

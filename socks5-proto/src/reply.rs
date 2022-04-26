@@ -1,4 +1,4 @@
-use crate::Error;
+use std::io::{Error, ErrorKind};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Reply {
@@ -39,7 +39,10 @@ impl TryFrom<u8> for Reply {
             Self::REPLY_TTL_EXPIRED => Ok(Reply::TtlExpired),
             Self::REPLY_COMMAND_NOT_SUPPORTED => Ok(Reply::CommandNotSupported),
             Self::REPLY_ADDRESS_TYPE_NOT_SUPPORTED => Ok(Reply::AddressTypeNotSupported),
-            code => Err(Error::InvalidReply(code)),
+            code => Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("Invalid reply {0:#x}", code),
+            )),
         }
     }
 }

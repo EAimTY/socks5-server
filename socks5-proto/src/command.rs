@@ -1,4 +1,4 @@
-use crate::Error;
+use std::io::{Error, ErrorKind};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Command {
@@ -21,7 +21,10 @@ impl TryFrom<u8> for Command {
             Self::CMD_CONNECT => Ok(Command::Connect),
             Self::CMD_BIND => Ok(Command::Bind),
             Self::CMD_ASSOCIATE => Ok(Command::Associate),
-            code => Err(Error::UnsupportedCommand(code)),
+            code => Err(Error::new(
+                ErrorKind::Unsupported,
+                format!("Unsupported command {0:#x}", code),
+            )),
         }
     }
 }

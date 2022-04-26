@@ -1,7 +1,7 @@
-use crate::Error;
 use bytes::BufMut;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
+    io::{Error, ErrorKind, Result},
     net::{Ipv4Addr, Ipv6Addr, SocketAddr},
     vec,
 };
@@ -18,7 +18,7 @@ impl Address {
     const ATYP_FQDN: u8 = 0x03;
     const ATYP_IPV6: u8 = 0x04;
 
-    pub async fn read_from<R>(stream: &mut R) -> Result<Self, Error>
+    pub async fn read_from<R>(stream: &mut R) -> Result<Self>
     where
         R: AsyncRead + Unpin,
     {
@@ -42,7 +42,15 @@ impl Address {
 
                 buf.truncate(len);
 
-                let addr = String::from_utf8(buf).map_err(|_| Error::AddressInvalidEncoding)?;
+                let addr = match String::from_utf8(buf) {
+                    Ok(addr) => addr,
+                    Err(err) => {
+                        return Err(Error::new(
+                            ErrorKind::InvalidData,
+                            format!("Invalid address encoding: {err}"),
+                        ))
+                    }
+                };
 
                 Ok(Self::DomainAddress(addr, port))
             }
@@ -66,7 +74,10 @@ impl Address {
 
                 Ok(Self::SocketAddress(SocketAddr::from((addr, port))))
             }
-            atyp => Err(Error::UnsupportedAddressType(atyp)),
+            atyp => Err(Error::new(
+                ErrorKind::Unsupported,
+                format!("Unsupported address type {0:#x}", atyp),
+            )),
         }
     }
 

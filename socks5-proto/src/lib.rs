@@ -1,6 +1,5 @@
 mod address;
 mod command;
-mod error;
 mod reply;
 mod request;
 mod response;
@@ -11,7 +10,6 @@ pub mod handshake;
 pub use self::{
     address::Address,
     command::Command,
-    error::Error,
     handshake::{HandshakeMethod, HandshakeRequest, HandshakeResponse},
     reply::Reply,
     request::Request,

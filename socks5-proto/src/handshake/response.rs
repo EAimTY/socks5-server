@@ -1,6 +1,6 @@
-use crate::{Error, HandshakeMethod};
+use crate::HandshakeMethod;
 use bytes::{BufMut, BytesMut};
-use std::io::Result as IoResult;
+use std::io::{Error, ErrorKind, Result};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// SOCKS5 handshake response
@@ -22,14 +22,17 @@ impl HandshakeResponse {
         Self { method }
     }
 
-    pub async fn read_from<R>(r: &mut R) -> Result<Self, Error>
+    pub async fn read_from<R>(r: &mut R) -> Result<Self>
     where
         R: AsyncRead + Unpin,
     {
         let ver = r.read_u8().await?;
 
-        if r.read_u8().await? != crate::SOCKS_VERSION {
-            return Err(Error::UnsupportedSocks5Version(ver));
+        if ver != crate::SOCKS_VERSION {
+            return Err(Error::new(
+                ErrorKind::Unsupported,
+                format!("Unsupported SOCKS version {0:#x}", ver),
+            ));
         }
 
         let method = HandshakeMethod::from(r.read_u8().await?);
@@ -37,7 +40,7 @@ impl HandshakeResponse {
         Ok(Self { method })
     }
 
-    pub async fn write_to<W>(&self, w: &mut W) -> IoResult<()>
+    pub async fn write_to<W>(&self, w: &mut W) -> Result<()>
     where
         W: AsyncWrite + Unpin,
     {
