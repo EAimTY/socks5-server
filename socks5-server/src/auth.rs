@@ -12,15 +12,21 @@ pub trait Auth {
     async fn execute(&self, stream: &mut TcpStream) -> Result<()>;
 }
 
-pub struct None;
+pub struct NoAuth;
+
+impl NoAuth {
+    pub fn new() -> Self {
+        Self
+    }
+}
 
 #[async_trait]
-impl Auth for None {
+impl Auth for NoAuth {
     fn as_handshake_method(&self) -> HandshakeMethod {
         HandshakeMethod::None
     }
 
-    async fn execute(&self, _stream: &mut TcpStream) -> Result<()> {
+    async fn execute(&self, _: &mut TcpStream) -> Result<()> {
         Ok(())
     }
 }
@@ -28,6 +34,12 @@ impl Auth for None {
 pub struct Password {
     username: Vec<u8>,
     password: Vec<u8>,
+}
+
+impl Password {
+    pub fn new(username: Vec<u8>, password: Vec<u8>) -> Self {
+        Self { username, password }
+    }
 }
 
 #[async_trait]
