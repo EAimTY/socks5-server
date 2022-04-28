@@ -31,6 +31,12 @@ impl Auth for NoAuth {
     }
 }
 
+impl Default for NoAuth {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct Password {
     username: Vec<u8>,
     password: Vec<u8>,

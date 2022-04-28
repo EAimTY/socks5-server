@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1"
 socks5-proto = { path = "../socks5-proto" }
-tokio = { version = "1.17", features = ["net"] }
+tokio = { version = "1.18", features = ["net"] }
