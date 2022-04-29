@@ -1,12 +1,16 @@
 use socks5_proto::{Address, Reply, Response};
 use std::{
     io::{IoSlice, Result},
+    net::SocketAddr,
     pin::Pin,
     task::{Context, Poll},
 };
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
-    net::TcpStream,
+    net::{
+        tcp::{ReadHalf, WriteHalf},
+        TcpStream,
+    },
 };
 
 pub struct Connect<S> {
@@ -38,6 +42,21 @@ impl Connect<Ready> {
             stream,
             _state: Ready,
         }
+    }
+
+    #[inline]
+    pub fn local_addr(&self) -> Result<SocketAddr> {
+        self.stream.local_addr()
+    }
+
+    #[inline]
+    pub fn peer_addr(&self) -> Result<SocketAddr> {
+        self.stream.peer_addr()
+    }
+
+    #[inline]
+    pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
+        self.stream.split()
     }
 }
 
