@@ -98,8 +98,6 @@ impl Address {
                 }
             },
             Self::DomainAddress(addr, port) => {
-                assert!(addr.len() > u8::MAX as usize);
-
                 buf.put_u8(Self::ATYP_FQDN);
                 buf.put_u8(addr.len() as u8);
                 buf.put_slice(addr.as_bytes());
