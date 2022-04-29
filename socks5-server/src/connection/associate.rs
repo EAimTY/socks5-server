@@ -103,11 +103,16 @@ impl AssociateUdpSocket {
         }
     }
 
-    pub async fn send(&self, pkt: Bytes, frag: u8, from_addr: Address) -> Result<usize> {
+    pub async fn send<P: AsRef<[u8]>>(
+        &self,
+        pkt: P,
+        frag: u8,
+        from_addr: Address,
+    ) -> Result<usize> {
         let header = UdpHeader::new(frag, from_addr);
-        let mut buf = BytesMut::with_capacity(header.serialized_len() + pkt.len());
+        let mut buf = BytesMut::with_capacity(header.serialized_len() + pkt.as_ref().len());
         header.write_to_buf(&mut buf);
-        buf.extend_from_slice(&pkt);
+        buf.extend_from_slice(pkt.as_ref());
 
         self.0
             .send(&buf)
@@ -115,17 +120,17 @@ impl AssociateUdpSocket {
             .map(|len| len - header.serialized_len())
     }
 
-    pub async fn send_to(
+    pub async fn send_to<P: AsRef<[u8]>>(
         &self,
-        pkt: Bytes,
+        pkt: P,
         frag: u8,
         from_addr: Address,
         to_addr: SocketAddr,
     ) -> Result<usize> {
         let header = UdpHeader::new(frag, from_addr);
-        let mut buf = BytesMut::with_capacity(header.serialized_len() + pkt.len());
+        let mut buf = BytesMut::with_capacity(header.serialized_len() + pkt.as_ref().len());
         header.write_to_buf(&mut buf);
-        buf.extend_from_slice(&pkt);
+        buf.extend_from_slice(pkt.as_ref());
 
         self.0
             .send_to(&buf, to_addr)
