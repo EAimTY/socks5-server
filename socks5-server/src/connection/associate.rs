@@ -1,17 +1,29 @@
 use bytes::{Bytes, BytesMut};
 use socks5_proto::{Address, Reply, Response, UdpHeader};
-use std::{io::Result, net::SocketAddr};
+use std::{
+    io::{IoSlice, Result},
+    net::SocketAddr,
+    pin::Pin,
+    task::{Context, Poll},
+};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpStream, ToSocketAddrs, UdpSocket},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
+    net::{
+        tcp::{ReadHalf, WriteHalf},
+        TcpStream, ToSocketAddrs, UdpSocket,
+    },
 };
 
+#[derive(Debug)]
 pub struct Associate<S> {
     stream: TcpStream,
     _state: S,
 }
 
+#[derive(Debug)]
 pub struct NeedReply;
+
+#[derive(Debug)]
 pub struct Ready;
 
 impl Associate<NeedReply> {
@@ -27,15 +39,6 @@ impl Associate<NeedReply> {
         resp.write_to(&mut self.stream).await?;
         Ok(Associate::<Ready>::new(self.stream))
     }
-}
-
-impl Associate<Ready> {
-    fn new(stream: TcpStream) -> Self {
-        Self {
-            stream,
-            _state: Ready,
-        }
-    }
 
     #[inline]
     pub fn local_addr(&self) -> Result<SocketAddr> {
@@ -47,7 +50,21 @@ impl Associate<Ready> {
         self.stream.peer_addr()
     }
 
-    pub async fn wait_close(&mut self) -> Result<()> {
+    #[inline]
+    pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
+        self.stream.split()
+    }
+}
+
+impl Associate<Ready> {
+    fn new(stream: TcpStream) -> Self {
+        Self {
+            stream,
+            _state: Ready,
+        }
+    }
+
+    pub async fn wait_close(mut self) -> Result<()> {
         let res = loop {
             match self.stream.read(&mut [0]).await {
                 Ok(0) => break Ok(()),
@@ -60,8 +77,24 @@ impl Associate<Ready> {
 
         res
     }
+
+    #[inline]
+    pub fn local_addr(&self) -> Result<SocketAddr> {
+        self.stream.local_addr()
+    }
+
+    #[inline]
+    pub fn peer_addr(&self) -> Result<SocketAddr> {
+        self.stream.peer_addr()
+    }
+
+    #[inline]
+    pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
+        self.stream.split()
+    }
 }
 
+#[derive(Debug)]
 pub struct AssociateUdpSocket(UdpSocket);
 
 impl AssociateUdpSocket {
@@ -152,5 +185,95 @@ impl From<UdpSocket> for AssociateUdpSocket {
 impl From<AssociateUdpSocket> for UdpSocket {
     fn from(associate: AssociateUdpSocket) -> Self {
         associate.0
+    }
+}
+
+impl AsyncRead for Associate<NeedReply> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for Associate<NeedReply> {
+    #[inline]
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize>> {
+        Pin::new(&mut self.stream).poll_write(cx, buf)
+    }
+
+    #[inline]
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<Result<usize>> {
+        Pin::new(&mut self.stream).poll_write_vectored(cx, bufs)
+    }
+
+    #[inline]
+    fn is_write_vectored(&self) -> bool {
+        self.stream.is_write_vectored()
+    }
+
+    #[inline]
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_flush(cx)
+    }
+
+    #[inline]
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_shutdown(cx)
+    }
+}
+
+impl AsyncRead for Associate<Ready> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for Associate<Ready> {
+    #[inline]
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize>> {
+        Pin::new(&mut self.stream).poll_write(cx, buf)
+    }
+
+    #[inline]
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<Result<usize>> {
+        Pin::new(&mut self.stream).poll_write_vectored(cx, bufs)
+    }
+
+    #[inline]
+    fn is_write_vectored(&self) -> bool {
+        self.stream.is_write_vectored()
+    }
+
+    #[inline]
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_flush(cx)
+    }
+
+    #[inline]
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_shutdown(cx)
     }
 }

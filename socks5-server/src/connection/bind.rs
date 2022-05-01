@@ -13,13 +13,19 @@ use tokio::{
     },
 };
 
+#[derive(Debug)]
 pub struct Bind<S> {
     stream: TcpStream,
     _state: S,
 }
 
+#[derive(Debug)]
 pub struct NeedFirstReply;
+
+#[derive(Debug)]
 pub struct NeedSecondReply;
+
+#[derive(Debug)]
 pub struct Ready;
 
 impl Bind<NeedFirstReply> {
@@ -35,6 +41,21 @@ impl Bind<NeedFirstReply> {
         resp.write_to(&mut self.stream).await?;
         Ok(Bind::<NeedSecondReply>::new(self.stream))
     }
+
+    #[inline]
+    pub fn local_addr(&self) -> Result<SocketAddr> {
+        self.stream.local_addr()
+    }
+
+    #[inline]
+    pub fn peer_addr(&self) -> Result<SocketAddr> {
+        self.stream.peer_addr()
+    }
+
+    #[inline]
+    pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
+        self.stream.split()
+    }
 }
 
 impl Bind<NeedSecondReply> {
@@ -49,6 +70,21 @@ impl Bind<NeedSecondReply> {
         let resp = Response::new(reply, addr);
         resp.write_to(&mut self.stream).await?;
         Ok(Bind::<Ready>::new(self.stream))
+    }
+
+    #[inline]
+    pub fn local_addr(&self) -> Result<SocketAddr> {
+        self.stream.local_addr()
+    }
+
+    #[inline]
+    pub fn peer_addr(&self) -> Result<SocketAddr> {
+        self.stream.peer_addr()
+    }
+
+    #[inline]
+    pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
+        self.stream.split()
     }
 }
 
@@ -73,6 +109,96 @@ impl Bind<Ready> {
     #[inline]
     pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
         self.stream.split()
+    }
+}
+
+impl AsyncRead for Bind<NeedFirstReply> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for Bind<NeedFirstReply> {
+    #[inline]
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize>> {
+        Pin::new(&mut self.stream).poll_write(cx, buf)
+    }
+
+    #[inline]
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<Result<usize>> {
+        Pin::new(&mut self.stream).poll_write_vectored(cx, bufs)
+    }
+
+    #[inline]
+    fn is_write_vectored(&self) -> bool {
+        self.stream.is_write_vectored()
+    }
+
+    #[inline]
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_flush(cx)
+    }
+
+    #[inline]
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_shutdown(cx)
+    }
+}
+
+impl AsyncRead for Bind<NeedSecondReply> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for Bind<NeedSecondReply> {
+    #[inline]
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize>> {
+        Pin::new(&mut self.stream).poll_write(cx, buf)
+    }
+
+    #[inline]
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<Result<usize>> {
+        Pin::new(&mut self.stream).poll_write_vectored(cx, bufs)
+    }
+
+    #[inline]
+    fn is_write_vectored(&self) -> bool {
+        self.stream.is_write_vectored()
+    }
+
+    #[inline]
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_flush(cx)
+    }
+
+    #[inline]
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_shutdown(cx)
     }
 }
 

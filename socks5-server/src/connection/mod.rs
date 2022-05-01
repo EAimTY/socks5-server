@@ -5,10 +5,18 @@ use socks5_proto::{
     Response,
 };
 use std::{
+    fmt::{Debug, Formatter, Result as FmtResult},
     io::{Error, ErrorKind, Result},
+    net::SocketAddr,
     sync::Arc,
 };
-use tokio::{io::AsyncWriteExt, net::TcpStream};
+use tokio::{
+    io::AsyncWriteExt,
+    net::{
+        tcp::{ReadHalf, WriteHalf},
+        TcpStream,
+    },
+};
 
 pub mod associate;
 pub mod bind;
@@ -56,6 +64,21 @@ impl IncomingConnection {
         }
     }
 
+    #[inline]
+    pub fn local_addr(&self) -> Result<SocketAddr> {
+        self.stream.local_addr()
+    }
+
+    #[inline]
+    pub fn peer_addr(&self) -> Result<SocketAddr> {
+        self.stream.peer_addr()
+    }
+
+    #[inline]
+    pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
+        self.stream.split()
+    }
+
     async fn auth(&mut self) -> Result<()> {
         let hs_req = HandshakeRequest::read_from(&mut self.stream).await?;
         let chosen_method = self.auth.as_handshake_method();
@@ -76,6 +99,15 @@ impl IncomingConnection {
     }
 }
 
+impl Debug for IncomingConnection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        f.debug_struct("IncomingConnection")
+            .field("stream", &self.stream)
+            .finish()
+    }
+}
+
+#[derive(Debug)]
 pub enum Connection {
     Associate(Associate<associate::NeedReply>, Address),
     Bind(Bind<bind::NeedFirstReply>, Address),

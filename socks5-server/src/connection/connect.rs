@@ -13,12 +13,16 @@ use tokio::{
     },
 };
 
+#[derive(Debug)]
 pub struct Connect<S> {
     stream: TcpStream,
     _state: S,
 }
 
+#[derive(Debug)]
 pub struct NeedReply;
+
+#[derive(Debug)]
 pub struct Ready;
 
 impl Connect<NeedReply> {
@@ -33,6 +37,21 @@ impl Connect<NeedReply> {
         let resp = Response::new(reply, addr);
         resp.write_to(&mut self.stream).await?;
         Ok(Connect::<Ready>::new(self.stream))
+    }
+
+    #[inline]
+    pub fn local_addr(&self) -> Result<SocketAddr> {
+        self.stream.local_addr()
+    }
+
+    #[inline]
+    pub fn peer_addr(&self) -> Result<SocketAddr> {
+        self.stream.peer_addr()
+    }
+
+    #[inline]
+    pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
+        self.stream.split()
     }
 }
 
@@ -57,6 +76,51 @@ impl Connect<Ready> {
     #[inline]
     pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
         self.stream.split()
+    }
+}
+
+impl AsyncRead for Connect<NeedReply> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for Connect<NeedReply> {
+    #[inline]
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize>> {
+        Pin::new(&mut self.stream).poll_write(cx, buf)
+    }
+
+    #[inline]
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<Result<usize>> {
+        Pin::new(&mut self.stream).poll_write_vectored(cx, bufs)
+    }
+
+    #[inline]
+    fn is_write_vectored(&self) -> bool {
+        self.stream.is_write_vectored()
+    }
+
+    #[inline]
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_flush(cx)
+    }
+
+    #[inline]
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream).poll_shutdown(cx)
     }
 }
 
