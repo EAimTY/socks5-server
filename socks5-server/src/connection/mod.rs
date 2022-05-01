@@ -6,7 +6,6 @@ use socks5_proto::{
 };
 use std::{
     io::{Error, ErrorKind, Result},
-    net::{Ipv4Addr, SocketAddr},
     sync::Arc,
 };
 use tokio::{io::AsyncWriteExt, net::TcpStream};
@@ -15,49 +14,28 @@ pub mod associate;
 pub mod bind;
 pub mod connect;
 
-pub struct IncomingConnection<A> {
+pub struct IncomingConnection {
     stream: TcpStream,
-    auth: Arc<A>,
+    auth: Arc<dyn Auth + Send + Sync + 'static>,
 }
 
-impl<A> IncomingConnection<A>
-where
-    A: Auth + Send + 'static,
-{
-    pub(crate) fn new(stream: TcpStream, auth: Arc<A>) -> Self {
+impl IncomingConnection {
+    pub(crate) fn new(stream: TcpStream, auth: Arc<dyn Auth + Send + Sync + 'static>) -> Self {
         IncomingConnection { stream, auth }
     }
 
     pub async fn handshake(mut self) -> Result<Connection> {
-        let hs_req = HandshakeRequest::read_from(&mut self.stream).await?;
-        let chosen_method = self.auth.as_handshake_method();
-
-        if hs_req.methods.contains(&chosen_method) {
-            let hs_resp = HandshakeResponse::new(chosen_method);
-            hs_resp.write_to(&mut self.stream).await?;
-            self.auth.execute(&mut self.stream).await?;
-        } else {
-            let hs_resp = HandshakeResponse::new(HandshakeMethod::Unacceptable);
-            hs_resp.write_to(&mut self.stream).await?;
+        if let Err(err) = self.auth().await {
             let _ = self.stream.shutdown().await;
-
-            return Err(Error::new(
-                ErrorKind::Unsupported,
-                "No available handshake method provided by client",
-            ));
+            return Err(err);
         }
 
         let req = match Request::read_from(&mut self.stream).await {
             Ok(req) => req,
             Err(err) => {
-                let resp = Response::new(
-                    Reply::GeneralFailure,
-                    Address::SocketAddress(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))),
-                );
-
+                let resp = Response::new(Reply::GeneralFailure, Address::unspecified());
                 resp.write_to(&mut self.stream).await?;
                 let _ = self.stream.shutdown().await;
-
                 return Err(err);
             }
         };
@@ -75,6 +53,25 @@ where
                 Connect::<connect::NeedReply>::new(self.stream),
                 req.address,
             )),
+        }
+    }
+
+    async fn auth(&mut self) -> Result<()> {
+        let hs_req = HandshakeRequest::read_from(&mut self.stream).await?;
+        let chosen_method = self.auth.as_handshake_method();
+
+        if hs_req.methods.contains(&chosen_method) {
+            let hs_resp = HandshakeResponse::new(chosen_method);
+            hs_resp.write_to(&mut self.stream).await?;
+            self.auth.execute(&mut self.stream).await
+        } else {
+            let hs_resp = HandshakeResponse::new(HandshakeMethod::Unacceptable);
+            hs_resp.write_to(&mut self.stream).await?;
+
+            Err(Error::new(
+                ErrorKind::Unsupported,
+                "No available handshake method provided by client",
+            ))
         }
     }
 }

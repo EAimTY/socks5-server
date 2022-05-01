@@ -13,26 +13,25 @@ pub use crate::{
     },
 };
 
-pub struct Server<A> {
+pub struct Server {
     listener: TcpListener,
-    auth: Arc<A>,
+    auth: Arc<dyn Auth + Send + Sync + 'static>,
 }
 
-impl<A> Server<A>
-where
-    A: Auth + Send + 'static,
-{
-    pub fn new(listener: TcpListener, auth: A) -> Self {
-        let auth = Arc::new(auth);
+impl Server {
+    pub fn new(listener: TcpListener, auth: Arc<dyn Auth + Send + Sync + 'static>) -> Self {
         Server { listener, auth }
     }
 
-    pub async fn bind<T: ToSocketAddrs>(addr: T, auth: A) -> Result<Self> {
+    pub async fn bind<T: ToSocketAddrs>(
+        addr: T,
+        auth: Arc<dyn Auth + Send + Sync + 'static>,
+    ) -> Result<Self> {
         let listener = TcpListener::bind(addr).await?;
         Ok(Server::new(listener, auth))
     }
 
-    pub async fn accept(&self) -> Result<(IncomingConnection<A>, SocketAddr)> {
+    pub async fn accept(&self) -> Result<(IncomingConnection, SocketAddr)> {
         let (stream, addr) = self.listener.accept().await?;
         Ok((IncomingConnection::new(stream, self.auth.clone()), addr))
     }
