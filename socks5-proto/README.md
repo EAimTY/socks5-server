@@ -14,11 +14,8 @@ Check out crate [socks5-server](https://crates.io/crates/socks5-server) for a co
 use socks5_proto::{
     Address, HandshakeMethod, HandshakeRequest, HandshakeResponse, Reply, Request, Response,
 };
-use std::{
-    io,
-    net::{Ipv4Addr, SocketAddr},
-};
-use tokio::net::TcpListener;
+use std::io;
+use tokio::{io::AsyncWriteExt, net::TcpListener};
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -33,16 +30,19 @@ async fn main() -> io::Result<()> {
     } else {
         let hs_resp = HandshakeResponse::new(HandshakeMethod::Unacceptable);
         hs_resp.write_to(&mut stream).await?;
+        let _ = stream.shutdown().await;
+        return Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "No available handshake method provided by client",
+        ));
     }
 
     let req = match Request::read_from(&mut stream).await {
         Ok(req) => req,
         Err(err) => {
-            let resp = Response::new(
-                Reply::GeneralFailure,
-                Address::SocketAddress(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))),
-            );
+            let resp = Response::new(Reply::GeneralFailure, Address::unspecified());
             resp.write_to(&mut stream).await?;
+            let _ = stream.shutdown().await;
             return Err(err);
         }
     };

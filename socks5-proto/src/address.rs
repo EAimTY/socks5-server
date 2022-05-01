@@ -115,6 +115,10 @@ impl Address {
             Address::DomainAddress(addr, _) => 3 + addr.len(),
         }
     }
+
+    pub fn unspecified() -> Self {
+        Address::SocketAddress(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
+    }
 }
 
 impl Display for Address {
