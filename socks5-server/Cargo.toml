@@ -1,6 +1,6 @@
 [package]
 name = "socks5-server"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["EAimTY <ea.imty@gmail.com>"]
 description = "Relatively low-level asynchronized SOCKS5 server implementation based on tokio"
 categories = ["network-programming", "asynchronous"]

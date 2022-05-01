@@ -7,7 +7,7 @@ use std::{
     task::{Context, Poll},
 };
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf},
     net::{
         tcp::{ReadHalf, WriteHalf},
         TcpStream, ToSocketAddrs, UdpSocket,
@@ -64,18 +64,14 @@ impl Associate<Ready> {
         }
     }
 
-    pub async fn wait_close(mut self) -> Result<()> {
-        let res = loop {
+    pub async fn wait_for_close(&mut self) -> Result<()> {
+        loop {
             match self.stream.read(&mut [0]).await {
                 Ok(0) => break Ok(()),
                 Ok(_) => {}
                 Err(err) => break Err(err),
             }
-        };
-
-        let _ = self.stream.shutdown().await;
-
-        res
+        }
     }
 
     #[inline]
