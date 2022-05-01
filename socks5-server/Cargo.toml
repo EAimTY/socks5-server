@@ -8,3 +8,6 @@ bytes = "1.1"
 async-trait = "0.1"
 socks5-proto = { path = "../socks5-proto" }
 tokio = { version = "1.18", features = ["net"] }
+
+[dev-dependencies]
+tokio = { version = "1.18", features = ["macros", "rt-multi-thread"] }

@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use std::{io::Result, net::SocketAddr, sync::Arc};
 use tokio::net::{TcpListener, ToSocketAddrs};
 
