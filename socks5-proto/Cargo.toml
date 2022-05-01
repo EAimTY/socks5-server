@@ -1,7 +1,14 @@
 [package]
 name = "socks5-proto"
 version = "0.1.0"
+authors = ["EAimTY <ea.imty@gmail.com>"]
+description = "Fundamental abstractions and async read / write functions for SOCKS5 protocol"
+categories = ["network-programming", "asynchronous"]
+keywords = ["socks5", "socks", "proxy", "async", "network"]
 edition = "2021"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/EAimTY/socks5-server"
 
 [dependencies]
 bytes = "1.1"
