@@ -5,11 +5,11 @@ use socks5_proto::{
     Response,
 };
 use std::{
-    io::Result,
+    io::{Error, ErrorKind, Result},
     net::{Ipv4Addr, SocketAddr},
     sync::Arc,
 };
-use tokio::net::TcpStream;
+use tokio::{io::AsyncWriteExt, net::TcpStream};
 
 pub mod associate;
 pub mod bind;
@@ -39,6 +39,12 @@ where
         } else {
             let hs_resp = HandshakeResponse::new(HandshakeMethod::Unacceptable);
             hs_resp.write_to(&mut self.stream).await?;
+            let _ = self.stream.shutdown().await;
+
+            return Err(Error::new(
+                ErrorKind::Unsupported,
+                "No available handshake method provided by client",
+            ));
         }
 
         let req = match Request::read_from(&mut self.stream).await {
@@ -48,7 +54,10 @@ where
                     Reply::GeneralFailure,
                     Address::SocketAddress(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))),
                 );
+
                 resp.write_to(&mut self.stream).await?;
+                let _ = self.stream.shutdown().await;
+
                 return Err(err);
             }
         };

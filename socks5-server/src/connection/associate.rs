@@ -2,7 +2,7 @@ use bytes::{Bytes, BytesMut};
 use socks5_proto::{Address, Reply, Response, UdpHeader};
 use std::{io::Result, net::SocketAddr};
 use tokio::{
-    io::AsyncReadExt,
+    io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpStream, ToSocketAddrs, UdpSocket},
 };
 
@@ -48,13 +48,17 @@ impl Associate<Ready> {
     }
 
     pub async fn wait_close(&mut self) -> Result<()> {
-        loop {
+        let res = loop {
             match self.stream.read(&mut [0]).await {
-                Ok(0) => return Ok(()),
+                Ok(0) => break Ok(()),
                 Ok(_) => {}
-                Err(err) => return Err(err),
+                Err(err) => break Err(err),
             }
-        }
+        };
+
+        let _ = self.stream.shutdown().await;
+
+        res
     }
 }
 
