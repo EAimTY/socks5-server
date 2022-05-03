@@ -35,4 +35,8 @@ impl Server {
         let (stream, addr) = self.listener.accept().await?;
         Ok((IncomingConnection::new(stream, self.auth.clone()), addr))
     }
+
+    pub fn local_addr(&self) -> Result<SocketAddr> {
+        self.listener.local_addr()
+    }
 }
