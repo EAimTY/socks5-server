@@ -26,6 +26,7 @@ pub struct NeedReply;
 pub struct Ready;
 
 impl Connect<NeedReply> {
+    #[inline]
     pub(super) fn new(stream: TcpStream) -> Self {
         Self {
             stream,
@@ -33,6 +34,7 @@ impl Connect<NeedReply> {
         }
     }
 
+    #[inline]
     pub async fn reply(mut self, reply: Reply, addr: Address) -> Result<Connect<Ready>> {
         let resp = Response::new(reply, addr);
         resp.write_to(&mut self.stream).await?;
@@ -56,6 +58,7 @@ impl Connect<NeedReply> {
 }
 
 impl Connect<Ready> {
+    #[inline]
     fn new(stream: TcpStream) -> Self {
         Self {
             stream,

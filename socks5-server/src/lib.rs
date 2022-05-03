@@ -19,10 +19,12 @@ pub struct Server {
 }
 
 impl Server {
+    #[inline]
     pub fn new(listener: TcpListener, auth: Arc<dyn Auth + Send + Sync>) -> Self {
         Self { listener, auth }
     }
 
+    #[inline]
     pub async fn bind<T: ToSocketAddrs>(
         addr: T,
         auth: Arc<dyn Auth + Send + Sync>,
@@ -31,11 +33,13 @@ impl Server {
         Ok(Self::new(listener, auth))
     }
 
+    #[inline]
     pub async fn accept(&self) -> Result<(IncomingConnection, SocketAddr)> {
         let (stream, addr) = self.listener.accept().await?;
         Ok((IncomingConnection::new(stream, self.auth.clone()), addr))
     }
 
+    #[inline]
     pub fn local_addr(&self) -> Result<SocketAddr> {
         self.listener.local_addr()
     }

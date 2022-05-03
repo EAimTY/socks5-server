@@ -29,6 +29,7 @@ pub struct NeedSecondReply;
 pub struct Ready;
 
 impl Bind<NeedFirstReply> {
+    #[inline]
     pub(super) fn new(stream: TcpStream) -> Self {
         Self {
             stream,
@@ -36,6 +37,7 @@ impl Bind<NeedFirstReply> {
         }
     }
 
+    #[inline]
     pub async fn reply(mut self, reply: Reply, addr: Address) -> Result<Bind<NeedSecondReply>> {
         let resp = Response::new(reply, addr);
         resp.write_to(&mut self.stream).await?;
@@ -59,6 +61,7 @@ impl Bind<NeedFirstReply> {
 }
 
 impl Bind<NeedSecondReply> {
+    #[inline]
     fn new(stream: TcpStream) -> Self {
         Self {
             stream,
@@ -66,6 +69,7 @@ impl Bind<NeedSecondReply> {
         }
     }
 
+    #[inline]
     pub async fn reply(mut self, reply: Reply, addr: Address) -> Result<Bind<Ready>> {
         let resp = Response::new(reply, addr);
         resp.write_to(&mut self.stream).await?;
@@ -89,6 +93,7 @@ impl Bind<NeedSecondReply> {
 }
 
 impl Bind<Ready> {
+    #[inline]
     fn new(stream: TcpStream) -> Self {
         Self {
             stream,
@@ -113,6 +118,7 @@ impl Bind<Ready> {
 }
 
 impl AsyncRead for Bind<Ready> {
+    #[inline]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,

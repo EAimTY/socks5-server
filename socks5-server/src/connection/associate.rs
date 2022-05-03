@@ -19,6 +19,7 @@ pub struct NeedReply;
 pub struct Ready;
 
 impl Associate<NeedReply> {
+    #[inline]
     pub(super) fn new(stream: TcpStream) -> Self {
         Self {
             stream,
@@ -26,6 +27,7 @@ impl Associate<NeedReply> {
         }
     }
 
+    #[inline]
     pub async fn reply(mut self, reply: Reply, addr: Address) -> Result<Associate<Ready>> {
         let resp = Response::new(reply, addr);
         resp.write_to(&mut self.stream).await?;
@@ -49,6 +51,7 @@ impl Associate<NeedReply> {
 }
 
 impl Associate<Ready> {
+    #[inline]
     fn new(stream: TcpStream) -> Self {
         Self {
             stream,
@@ -165,12 +168,14 @@ impl AssociateUdpSocket {
 }
 
 impl From<UdpSocket> for AssociateUdpSocket {
+    #[inline]
     fn from(socket: UdpSocket) -> Self {
         AssociateUdpSocket(socket)
     }
 }
 
 impl From<AssociateUdpSocket> for UdpSocket {
+    #[inline]
     fn from(associate: AssociateUdpSocket) -> Self {
         associate.0
     }

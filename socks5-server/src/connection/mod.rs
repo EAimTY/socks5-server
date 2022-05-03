@@ -22,6 +22,7 @@ pub struct IncomingConnection {
 }
 
 impl IncomingConnection {
+    #[inline]
     pub(crate) fn new(stream: TcpStream, auth: Arc<dyn Auth + Send + Sync>) -> Self {
         IncomingConnection { stream, auth }
     }
@@ -73,6 +74,7 @@ impl IncomingConnection {
         self.stream.shutdown().await
     }
 
+    #[inline]
     async fn auth(&mut self) -> Result<()> {
         let hs_req = HandshakeRequest::read_from(&mut self.stream).await?;
         let chosen_method = self.auth.as_handshake_method();
