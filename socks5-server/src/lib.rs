@@ -15,20 +15,20 @@ pub use crate::{
 
 pub struct Server {
     listener: TcpListener,
-    auth: Arc<dyn Auth + Send + Sync + 'static>,
+    auth: Arc<dyn Auth + Send + Sync>,
 }
 
 impl Server {
-    pub fn new(listener: TcpListener, auth: Arc<dyn Auth + Send + Sync + 'static>) -> Self {
-        Server { listener, auth }
+    pub fn new(listener: TcpListener, auth: Arc<dyn Auth + Send + Sync>) -> Self {
+        Self { listener, auth }
     }
 
     pub async fn bind<T: ToSocketAddrs>(
         addr: T,
-        auth: Arc<dyn Auth + Send + Sync + 'static>,
+        auth: Arc<dyn Auth + Send + Sync>,
     ) -> Result<Self> {
         let listener = TcpListener::bind(addr).await?;
-        Ok(Server::new(listener, auth))
+        Ok(Self::new(listener, auth))
     }
 
     pub async fn accept(&self) -> Result<(IncomingConnection, SocketAddr)> {

@@ -10,13 +10,7 @@ use std::{
     net::SocketAddr,
     sync::Arc,
 };
-use tokio::{
-    io::AsyncWriteExt,
-    net::{
-        tcp::{ReadHalf, WriteHalf},
-        TcpStream,
-    },
-};
+use tokio::{io::AsyncWriteExt, net::TcpStream};
 
 pub mod associate;
 pub mod bind;
@@ -24,11 +18,11 @@ pub mod connect;
 
 pub struct IncomingConnection {
     stream: TcpStream,
-    auth: Arc<dyn Auth + Send + Sync + 'static>,
+    auth: Arc<dyn Auth + Send + Sync>,
 }
 
 impl IncomingConnection {
-    pub(crate) fn new(stream: TcpStream, auth: Arc<dyn Auth + Send + Sync + 'static>) -> Self {
+    pub(crate) fn new(stream: TcpStream, auth: Arc<dyn Auth + Send + Sync>) -> Self {
         IncomingConnection { stream, auth }
     }
 
@@ -75,8 +69,8 @@ impl IncomingConnection {
     }
 
     #[inline]
-    pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
-        self.stream.split()
+    pub async fn shutdown(&mut self) -> Result<()> {
+        self.stream.shutdown().await
     }
 
     async fn auth(&mut self) -> Result<()> {

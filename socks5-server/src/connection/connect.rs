@@ -6,7 +6,7 @@ use std::{
     task::{Context, Poll},
 };
 use tokio::{
-    io::{AsyncRead, AsyncWrite, ReadBuf},
+    io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{
         tcp::{ReadHalf, WriteHalf},
         TcpStream,
@@ -50,8 +50,8 @@ impl Connect<NeedReply> {
     }
 
     #[inline]
-    pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
-        self.stream.split()
+    pub async fn shutdown(&mut self) -> Result<()> {
+        self.stream.shutdown().await
     }
 }
 
@@ -76,51 +76,6 @@ impl Connect<Ready> {
     #[inline]
     pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
         self.stream.split()
-    }
-}
-
-impl AsyncRead for Connect<NeedReply> {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<Result<()>> {
-        Pin::new(&mut self.stream).poll_read(cx, buf)
-    }
-}
-
-impl AsyncWrite for Connect<NeedReply> {
-    #[inline]
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<Result<usize>> {
-        Pin::new(&mut self.stream).poll_write(cx, buf)
-    }
-
-    #[inline]
-    fn poll_write_vectored(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        bufs: &[IoSlice<'_>],
-    ) -> Poll<Result<usize>> {
-        Pin::new(&mut self.stream).poll_write_vectored(cx, bufs)
-    }
-
-    #[inline]
-    fn is_write_vectored(&self) -> bool {
-        self.stream.is_write_vectored()
-    }
-
-    #[inline]
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        Pin::new(&mut self.stream).poll_flush(cx)
-    }
-
-    #[inline]
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        Pin::new(&mut self.stream).poll_shutdown(cx)
     }
 }
 

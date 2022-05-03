@@ -24,13 +24,16 @@ async fn main() -> Result<()> {
 async fn handle(conn: IncomingConnection) -> Result<()> {
     match conn.handshake().await? {
         Connection::Associate(associate, _) => {
-            associate
+            let mut conn = associate
                 .reply(Reply::CommandNotSupported, Address::unspecified())
                 .await?;
+            conn.shutdown().await?;
         }
         Connection::Bind(bind, _) => {
-            bind.reply(Reply::CommandNotSupported, Address::unspecified())
+            let mut conn = bind
+                .reply(Reply::CommandNotSupported, Address::unspecified())
                 .await?;
+            conn.shutdown().await?;
         }
         Connection::Connect(connect, addr) => {
             let target = match addr {
@@ -42,7 +45,6 @@ async fn handle(conn: IncomingConnection) -> Result<()> {
                 let mut conn = connect
                     .reply(Reply::Succeeded, Address::unspecified())
                     .await?;
-
                 io::copy_bidirectional(&mut target, &mut conn).await?;
             } else {
                 let mut conn = connect
