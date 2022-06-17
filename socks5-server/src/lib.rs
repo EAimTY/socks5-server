@@ -9,7 +9,10 @@ pub mod connection;
 pub use crate::{
     auth::Auth,
     connection::{
-        associate::Associate, bind::Bind, connect::Connect, Connection, IncomingConnection,
+        associate::{Associate, AssociateUdpSocket},
+        bind::Bind,
+        connect::Connect,
+        Connection, IncomingConnection,
     },
 };
 
