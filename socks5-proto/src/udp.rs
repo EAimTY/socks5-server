@@ -54,4 +54,8 @@ impl UdpHeader {
     pub fn serialized_len(&self) -> usize {
         3 + self.address.serialized_len()
     }
+
+    pub const fn max_serialized_len() -> usize {
+        3 + Address::max_serialized_len()
+    }
 }

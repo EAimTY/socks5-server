@@ -18,6 +18,10 @@ impl Address {
     const ATYP_FQDN: u8 = 0x03;
     const ATYP_IPV6: u8 = 0x04;
 
+    pub fn unspecified() -> Self {
+        Address::SocketAddress(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
+    }
+
     pub async fn read_from<R>(stream: &mut R) -> Result<Self>
     where
         R: AsyncRead + Unpin,
@@ -112,12 +116,12 @@ impl Address {
                 SocketAddr::V4(_) => 6,
                 SocketAddr::V6(_) => 18,
             },
-            Address::DomainAddress(addr, _) => 3 + addr.len(),
+            Address::DomainAddress(addr, _) => 1 + addr.len() + 2,
         }
     }
 
-    pub fn unspecified() -> Self {
-        Address::SocketAddress(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
+    pub const fn max_serialized_len() -> usize {
+        1 + 1 + u8::MAX as usize + 2
     }
 }
 
