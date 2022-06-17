@@ -16,6 +16,7 @@ pub mod associate;
 pub mod bind;
 pub mod connect;
 
+/// Incoming connection. This may not be a valid socks5 connection, so you need to call [`handshake()`](#method.handshake) to perform the socks5 handshake, then it will be converted to a proper socks5 connection.
 pub struct IncomingConnection {
     stream: TcpStream,
     auth: Arc<dyn Auth + Send + Sync>,
@@ -27,6 +28,7 @@ impl IncomingConnection {
         IncomingConnection { stream, auth }
     }
 
+    /// Perform the socks5 handshake on this connection.
     pub async fn handshake(mut self) -> Result<Connection> {
         if let Err(err) = self.auth().await {
             let _ = self.stream.shutdown().await;
@@ -59,16 +61,19 @@ impl IncomingConnection {
         }
     }
 
+    /// Returns the local address that this stream is bound to.
     #[inline]
     pub fn local_addr(&self) -> Result<SocketAddr> {
         self.stream.local_addr()
     }
 
+    /// Returns the remote address that this stream is connected to.
     #[inline]
     pub fn peer_addr(&self) -> Result<SocketAddr> {
         self.stream.peer_addr()
     }
 
+    /// Shutdown the TCP stream.
     #[inline]
     pub async fn shutdown(&mut self) -> Result<()> {
         self.stream.shutdown().await
@@ -103,6 +108,11 @@ impl Debug for IncomingConnection {
     }
 }
 
+/// After the socks5 handshake succeeds, the connection may become:
+///
+/// - Associate
+/// - Bind
+/// - Connect
 #[derive(Debug)]
 pub enum Connection {
     Associate(Associate<associate::NeedReply>, Address),

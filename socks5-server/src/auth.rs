@@ -6,12 +6,25 @@ use socks5_proto::{
 use std::io::{Error, ErrorKind, Result};
 use tokio::net::TcpStream;
 
+/// This trait is for defining the socks5 authentication method.
+///
+/// Pre-defined authentication methods can be found in the [`auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/index.html) module.
+///
+/// You can also create your own authentication method by implementing this trait.
 #[async_trait]
 pub trait Auth {
+    /// Returns the code for identifying the authentication method in the socks5 handshake header.
     fn as_handshake_method(&self) -> HandshakeMethod;
+
+    /// The asynchronous authentication procedure on the given stream.
+    ///
+    /// Since GAT is not stabled yet, [async_trait](https://docs.rs/async-trait/latest/async_trait/index.html) needs to be used.
+    ///
+    /// **Note that no matter wheather the authentication is successful or not, you don't need to close the stream.**
     async fn execute(&self, stream: &mut TcpStream) -> Result<()>;
 }
 
+/// No authentication as the socks5 handshake method.
 pub struct NoAuth;
 
 impl NoAuth {
@@ -37,6 +50,7 @@ impl Default for NoAuth {
     }
 }
 
+/// Username and password as the socks5 handshake method.
 pub struct Password {
     username: Vec<u8>,
     password: Vec<u8>,

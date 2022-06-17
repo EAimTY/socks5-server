@@ -6,6 +6,7 @@ use tokio::{io, net::TcpStream};
 #[tokio::main]
 async fn main() -> Result<()> {
     let server = Server::bind("127.0.0.1:5000", Arc::new(NoAuth)).await?;
+
     while let Ok((conn, _)) = server.accept().await {
         tokio::spawn(async move {
             match handle(conn).await {
