@@ -115,6 +115,11 @@ impl Bind<Ready> {
     pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
         self.stream.split()
     }
+
+    #[inline]
+    pub async fn shutdown(&mut self) -> Result<()> {
+        self.stream.shutdown().await
+    }
 }
 
 impl AsyncRead for Bind<Ready> {

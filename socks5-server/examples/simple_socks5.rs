@@ -1,10 +1,7 @@
 use socks5_proto::{Address, Reply};
 use socks5_server::{auth::NoAuth, Connection, IncomingConnection, Server};
 use std::{io::Result, sync::Arc};
-use tokio::{
-    io::{self, AsyncWriteExt},
-    net::TcpStream,
-};
+use tokio::{io, net::TcpStream};
 
 #[tokio::main]
 async fn main() -> Result<()> {

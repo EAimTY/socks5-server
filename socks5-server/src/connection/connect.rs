@@ -80,9 +80,15 @@ impl Connect<Ready> {
     pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
         self.stream.split()
     }
+
+    #[inline]
+    pub async fn shutdown(&mut self) -> Result<()> {
+        self.stream.shutdown().await
+    }
 }
 
 impl AsyncRead for Connect<Ready> {
+    #[inline]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
