@@ -17,5 +17,11 @@ Check out crate [socks5-proto](https://crates.io/crates/socks5-proto) for an imp
   - ASSOCIATE
 - Customizable authentication
 
+## Usage
+
+The entry point of this crate is [`socks5_server::Server`](https://docs.rs/socks5-server/latest/socks5_server/struct.Server.html).
+
+Check [examples](https://github.com/EAimTY/socks5-server/tree/master/socks5-server/examples) for usage examples.
+
 ## License
 GNU General Public License v3.0
