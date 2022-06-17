@@ -1,6 +1,10 @@
 use bytes::{Bytes, BytesMut};
 use socks5_proto::{Address, Reply, Response, UdpHeader};
-use std::{io::Result, net::SocketAddr};
+use std::{
+    io::Result,
+    net::SocketAddr,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpStream, ToSocketAddrs, UdpSocket},
@@ -86,28 +90,40 @@ impl Associate<Ready> {
 }
 
 #[derive(Debug)]
-pub struct AssociateUdpSocket(UdpSocket);
+pub struct AssociateUdpSocket {
+    socket: UdpSocket,
+    buf_size: AtomicUsize,
+}
 
 impl AssociateUdpSocket {
     #[inline]
     pub async fn connect<A: ToSocketAddrs>(&self, addr: A) -> Result<()> {
-        self.0.connect(addr).await
+        self.socket.connect(addr).await
     }
 
     #[inline]
     pub fn local_addr(&self) -> Result<SocketAddr> {
-        self.0.local_addr()
+        self.socket.local_addr()
     }
 
     #[inline]
     pub fn peer_addr(&self) -> Result<SocketAddr> {
-        self.0.peer_addr()
+        self.socket.peer_addr()
+    }
+
+    pub fn get_max_packet_size(&self) -> usize {
+        self.buf_size.load(Ordering::Relaxed)
+    }
+
+    pub fn set_max_packet_size(&self, size: usize) {
+        self.buf_size.store(size, Ordering::Release);
     }
 
     pub async fn recv(&self) -> Result<(Bytes, u8, Address)> {
         loop {
-            let mut buf = vec![0; 65535];
-            let len = self.0.recv(&mut buf).await?;
+            let max_packet_size = self.buf_size.load(Ordering::Acquire);
+            let mut buf = vec![0; max_packet_size];
+            let len = self.socket.recv(&mut buf).await?;
             buf.truncate(len);
             let pkt = Bytes::from(buf);
 
@@ -119,8 +135,9 @@ impl AssociateUdpSocket {
 
     pub async fn recv_from(&self) -> Result<(Bytes, u8, Address, SocketAddr)> {
         loop {
-            let mut buf = vec![0; 65535];
-            let (len, src_addr) = self.0.recv_from(&mut buf).await?;
+            let max_packet_size = self.buf_size.load(Ordering::Acquire);
+            let mut buf = vec![0; max_packet_size];
+            let (len, src_addr) = self.socket.recv_from(&mut buf).await?;
             buf.truncate(len);
             let pkt = Bytes::from(buf);
 
@@ -142,7 +159,7 @@ impl AssociateUdpSocket {
         header.write_to_buf(&mut buf);
         buf.extend_from_slice(pkt.as_ref());
 
-        self.0
+        self.socket
             .send(&buf)
             .await
             .map(|len| len - header.serialized_len())
@@ -160,23 +177,26 @@ impl AssociateUdpSocket {
         header.write_to_buf(&mut buf);
         buf.extend_from_slice(pkt.as_ref());
 
-        self.0
+        self.socket
             .send_to(&buf, to_addr)
             .await
             .map(|len| len - header.serialized_len())
     }
 }
 
-impl From<UdpSocket> for AssociateUdpSocket {
+impl From<(UdpSocket, usize)> for AssociateUdpSocket {
     #[inline]
-    fn from(socket: UdpSocket) -> Self {
-        AssociateUdpSocket(socket)
+    fn from(from: (UdpSocket, usize)) -> Self {
+        AssociateUdpSocket {
+            socket: from.0,
+            buf_size: AtomicUsize::new(from.1),
+        }
     }
 }
 
 impl From<AssociateUdpSocket> for UdpSocket {
     #[inline]
-    fn from(associate: AssociateUdpSocket) -> Self {
-        associate.0
+    fn from(from: AssociateUdpSocket) -> Self {
+        from.socket
     }
 }
