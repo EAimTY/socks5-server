@@ -9,7 +9,7 @@ pub mod connection;
 pub use crate::{
     auth::Auth,
     connection::{
-        associate::{Associate, AssociateUdpSocket},
+        associate::{Associate, AssociatedUdpSocket},
         bind::Bind,
         connect::Connect,
         Connection, IncomingConnection,
@@ -18,7 +18,7 @@ pub use crate::{
 
 /// The socks5 server itself.
 ///
-/// The server can be constructed on a given socket address, or it can be created on a existing TcpListener.
+/// The server can be constructed on a given socket address, or be created on a existing TcpListener.
 ///
 /// The authentication method can be configured with the [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) trait.
 pub struct Server {
@@ -43,7 +43,7 @@ impl Server {
         Ok(Self::new(listener, auth))
     }
 
-    /// Accept an [`IncomingConnection`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html). The connection may not be a valid socks5 connection, so you need to call [`IncomingConnection::handshake`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.handshake) to convert it to a proper socks5 connection.
+    /// Accept an [`IncomingConnection`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html). The connection may not be a valid socks5 connection. You need to call [`IncomingConnection::handshake()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.handshake) to hand-shake it into a proper socks5 connection.
     #[inline]
     pub async fn accept(&self) -> Result<(IncomingConnection, SocketAddr)> {
         let (stream, addr) = self.listener.accept().await?;

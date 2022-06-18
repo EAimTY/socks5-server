@@ -10,17 +10,33 @@ use tokio::net::TcpStream;
 ///
 /// Pre-defined authentication methods can be found in the [`auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/index.html) module.
 ///
-/// You can also create your own authentication method by implementing this trait.
+/// You can create your own authentication method by implementing this trait. Since GAT is not stabled yet, [async_trait](https://docs.rs/async-trait/latest/async_trait/index.html) needs to be used.
+///
+/// # Example
+/// ```rust
+/// use async_trait::async_trait;
+/// use std::io::Result;
+/// use socks5_proto::HandshakeMethod;
+/// use socks5_server::Auth;
+/// use tokio::net::TcpStream;
+///
+/// pub struct MyAuth;
+///
+/// #[async_trait]
+/// impl Auth for MyAuth {
+///     fn as_handshake_method(&self) -> HandshakeMethod {
+///         HandshakeMethod(0x80)
+///     }
+///
+///     async fn execute(&self, stream: &mut TcpStream) -> Result<()> {
+///         // do something
+///         Ok(())
+///     }
+/// }
+/// ```
 #[async_trait]
 pub trait Auth {
-    /// Returns the code for identifying the authentication method in the socks5 handshake header.
     fn as_handshake_method(&self) -> HandshakeMethod;
-
-    /// The asynchronous authentication procedure on the given stream.
-    ///
-    /// Since GAT is not stabled yet, [async_trait](https://docs.rs/async-trait/latest/async_trait/index.html) needs to be used.
-    ///
-    /// **Note that no matter wheather the authentication is successful or not, you don't need to close the stream.**
     async fn execute(&self, stream: &mut TcpStream) -> Result<()>;
 }
 

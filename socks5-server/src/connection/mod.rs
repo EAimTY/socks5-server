@@ -16,7 +16,7 @@ pub mod associate;
 pub mod bind;
 pub mod connect;
 
-/// Incoming connection. This may not be a valid socks5 connection, so you need to call [`handshake()`](#method.handshake) to perform the socks5 handshake, then it will be converted to a proper socks5 connection.
+/// A Incoming connection. This may not be a valid socks5 connection. You need to call [`handshake()`](#method.handshake) to perform the socks5 handshake. It will be converted to a proper socks5 connection after the handshake succeeds.
 pub struct IncomingConnection {
     stream: TcpStream,
     auth: Arc<dyn Auth + Send + Sync>,

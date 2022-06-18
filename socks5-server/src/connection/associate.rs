@@ -12,7 +12,7 @@ use tokio::{
 
 /// Socks5 connection type `Associate`
 ///
-/// [`AssociateUdpSocket`](https://docs.rs/socks5-server/latest/socks5_server/connection/associate/struct.AssociateUdpSocket.html) can be used as the associated UDP socket.
+/// [`AssociatedUdpSocket`](https://docs.rs/socks5-server/latest/socks5_server/connection/associate/struct.AssociatedUdpSocket.html) can be used as the associated UDP socket.
 #[derive(Debug)]
 pub struct Associate<S> {
     stream: TcpStream,
@@ -108,16 +108,16 @@ impl Associate<Ready> {
 ///
 /// The receiving buffer size for each UDP packet can be set with [`set_recv_buffer_size()`](#method.set_recv_buffer_size), and be read with [`get_max_packet_size()`](#method.get_recv_buffer_size).
 ///
-/// You can create this struct by using [`AssociateUdpSocket::from::<(UdpSocket, usize)>()`](#impl-From<UdpSocket>), the first element of the tuple is the UDP socket, the second element is the receiving buffer size.
+/// You can create this struct by using [`AssociatedUdpSocket::from::<(UdpSocket, usize)>()`](#impl-From<UdpSocket>), the first element of the tuple is the UDP socket, the second element is the receiving buffer size.
 ///
-/// This struct can also be revert into a raw tokio UDP socket with [`UdpSocket::from::<AssociateUdpSocket>()`](#impl-From<AssociateUdpSocket>).
+/// This struct can also be revert into a raw tokio UDP socket with [`UdpSocket::from::<AssociatedUdpSocket>()`](#impl-From<AssociatedUdpSocket>).
 #[derive(Debug)]
-pub struct AssociateUdpSocket {
+pub struct AssociatedUdpSocket {
     socket: UdpSocket,
     buf_size: AtomicUsize,
 }
 
-impl AssociateUdpSocket {
+impl AssociatedUdpSocket {
     /// Connects the UDP socket setting the default destination for send() and limiting packets that are read via recv from the address specified in addr.
     #[inline]
     pub async fn connect<A: ToSocketAddrs>(&self, addr: A) -> Result<()> {
@@ -217,19 +217,19 @@ impl AssociateUdpSocket {
     }
 }
 
-impl From<(UdpSocket, usize)> for AssociateUdpSocket {
+impl From<(UdpSocket, usize)> for AssociatedUdpSocket {
     #[inline]
     fn from(from: (UdpSocket, usize)) -> Self {
-        AssociateUdpSocket {
+        AssociatedUdpSocket {
             socket: from.0,
             buf_size: AtomicUsize::new(from.1),
         }
     }
 }
 
-impl From<AssociateUdpSocket> for UdpSocket {
+impl From<AssociatedUdpSocket> for UdpSocket {
     #[inline]
-    fn from(from: AssociateUdpSocket) -> Self {
+    fn from(from: AssociatedUdpSocket) -> Self {
         from.socket
     }
 }
