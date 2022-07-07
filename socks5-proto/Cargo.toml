@@ -1,6 +1,6 @@
 [package]
 name = "socks5-proto"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["EAimTY <ea.imty@gmail.com>"]
 description = "Fundamental abstractions and async read / write functions for SOCKS5 protocol"
 categories = ["network-programming", "asynchronous"]
