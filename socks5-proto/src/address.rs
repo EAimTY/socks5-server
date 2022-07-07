@@ -63,7 +63,7 @@ impl Address {
                 stream.read_exact(&mut buf).await?;
                 let buf = unsafe { *(buf.as_ptr() as *const [u16; 9]) };
 
-                let port = buf[8];
+                let port = u16::from_be(buf[8]);
 
                 let addr = Ipv6Addr::new(
                     u16::from_be(buf[0]),
