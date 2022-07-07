@@ -1,7 +1,8 @@
+use byteorder::{BigEndian, ReadBytesExt};
 use bytes::BufMut;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Error, ErrorKind, Result},
+    io::{Cursor, Error, ErrorKind, Result},
     net::{Ipv4Addr, Ipv6Addr, SocketAddr},
     vec,
 };
@@ -26,13 +27,22 @@ impl Address {
     where
         R: AsyncRead + Unpin,
     {
-        match stream.read_u8().await? {
+        let atyp = stream.read_u8().await?;
+
+        match atyp {
             Self::ATYP_IPV4 => {
                 let mut buf = [0; 6];
                 stream.read_exact(&mut buf).await?;
+                let mut rdr = Cursor::new(buf);
 
-                let port = unsafe { u16::from_be(*(buf.as_ptr().add(4) as *const u16)) };
-                let addr = Ipv4Addr::new(buf[0], buf[1], buf[2], buf[3]);
+                let addr = Ipv4Addr::new(
+                    ReadBytesExt::read_u8(&mut rdr).unwrap(),
+                    ReadBytesExt::read_u8(&mut rdr).unwrap(),
+                    ReadBytesExt::read_u8(&mut rdr).unwrap(),
+                    ReadBytesExt::read_u8(&mut rdr).unwrap(),
+                );
+
+                let port = ReadBytesExt::read_u16::<BigEndian>(&mut rdr).unwrap();
 
                 Ok(Self::SocketAddress(SocketAddr::from((addr, port))))
             }
@@ -42,8 +52,7 @@ impl Address {
                 let mut buf = vec![0; len + 2];
                 stream.read_exact(&mut buf).await?;
 
-                let port = unsafe { u16::from_be(*(buf.as_ptr().add(len) as *const u16)) };
-
+                let port = ReadBytesExt::read_u16::<BigEndian>(&mut &buf[len..]).unwrap();
                 buf.truncate(len);
 
                 let addr = match String::from_utf8(buf) {
@@ -61,20 +70,20 @@ impl Address {
             Self::ATYP_IPV6 => {
                 let mut buf = [0; 18];
                 stream.read_exact(&mut buf).await?;
-                let buf = unsafe { *(buf.as_ptr() as *const [u16; 9]) };
-
-                let port = buf[8];
+                let mut rdr = Cursor::new(buf);
 
                 let addr = Ipv6Addr::new(
-                    u16::from_be(buf[0]),
-                    u16::from_be(buf[1]),
-                    u16::from_be(buf[2]),
-                    u16::from_be(buf[3]),
-                    u16::from_be(buf[4]),
-                    u16::from_be(buf[5]),
-                    u16::from_be(buf[6]),
-                    u16::from_be(buf[7]),
+                    ReadBytesExt::read_u16::<BigEndian>(&mut rdr).unwrap(),
+                    ReadBytesExt::read_u16::<BigEndian>(&mut rdr).unwrap(),
+                    ReadBytesExt::read_u16::<BigEndian>(&mut rdr).unwrap(),
+                    ReadBytesExt::read_u16::<BigEndian>(&mut rdr).unwrap(),
+                    ReadBytesExt::read_u16::<BigEndian>(&mut rdr).unwrap(),
+                    ReadBytesExt::read_u16::<BigEndian>(&mut rdr).unwrap(),
+                    ReadBytesExt::read_u16::<BigEndian>(&mut rdr).unwrap(),
+                    ReadBytesExt::read_u16::<BigEndian>(&mut rdr).unwrap(),
                 );
+
+                let port = ReadBytesExt::read_u16::<BigEndian>(&mut rdr).unwrap();
 
                 Ok(Self::SocketAddress(SocketAddr::from((addr, port))))
             }
