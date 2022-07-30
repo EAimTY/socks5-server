@@ -158,6 +158,7 @@ impl AssociatedUdpSocket {
             let pkt = Bytes::from(buf);
 
             if let Ok(header) = UdpHeader::read_from(&mut pkt.as_ref()).await {
+                let pkt = pkt.slice(header.serialized_len()..);
                 return Ok((pkt, header.frag, header.address));
             }
         }
