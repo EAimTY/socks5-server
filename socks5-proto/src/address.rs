@@ -27,8 +27,16 @@ impl Address {
         match self {
             Address::SocketAddress(addr) => Ok(*addr),
             Address::DomainAddress(addr, port) => {
-                let addr = addr.parse::<Ipv4Addr>()?;
-                Ok(SocketAddr::from((addr, *port)))
+                if let Ok(addr) = addr.parse::<Ipv4Addr>() {
+                    Ok(SocketAddr::from((addr, *port)))
+                } else if let Ok(addr) = addr.parse::<Ipv6Addr>() {
+                    Ok(SocketAddr::from((addr, *port)))
+                } else {
+                    Err(Error::new(
+                        ErrorKind::InvalidData,
+                        format!("Invalid address: {addr}"),
+                    ))
+                }
             }
         }
     }
