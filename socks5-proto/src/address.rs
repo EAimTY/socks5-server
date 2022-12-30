@@ -23,6 +23,16 @@ impl Address {
         Address::SocketAddress(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
     }
 
+    pub fn to_socket_addr(&self) -> Result<SocketAddr> {
+        match self {
+            Address::SocketAddress(addr) => Ok(*addr),
+            Address::DomainAddress(addr, port) => {
+                let addr = addr.parse::<Ipv4Addr>()?;
+                Ok(SocketAddr::from((addr, *port)))
+            }
+        }
+    }
+
     pub async fn read_from<R>(stream: &mut R) -> Result<Self>
     where
         R: AsyncRead + Unpin,
