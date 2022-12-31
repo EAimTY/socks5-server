@@ -160,3 +160,33 @@ impl Display for Address {
         }
     }
 }
+
+impl From<SocketAddr> for Address {
+    fn from(addr: SocketAddr) -> Self {
+        Address::SocketAddress(addr)
+    }
+}
+
+impl From<(Ipv4Addr, u16)> for Address {
+    fn from((addr, port): (Ipv4Addr, u16)) -> Self {
+        Address::SocketAddress(SocketAddr::from((addr, port)))
+    }
+}
+
+impl From<(Ipv6Addr, u16)> for Address {
+    fn from((addr, port): (Ipv6Addr, u16)) -> Self {
+        Address::SocketAddress(SocketAddr::from((addr, port)))
+    }
+}
+
+impl From<(String, u16)> for Address {
+    fn from((addr, port): (String, u16)) -> Self {
+        Address::DomainAddress(addr, port)
+    }
+}
+
+impl From<(&str, u16)> for Address {
+    fn from((addr, port): (&str, u16)) -> Self {
+        Address::DomainAddress(addr.to_owned(), port)
+    }
+}
