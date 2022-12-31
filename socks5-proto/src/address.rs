@@ -23,6 +23,24 @@ impl Address {
         Address::SocketAddress(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
     }
 
+    pub fn to_socket_addr(&self) -> Result<SocketAddr> {
+        match self {
+            Address::SocketAddress(addr) => Ok(*addr),
+            Address::DomainAddress(addr, port) => {
+                if let Ok(addr) = addr.parse::<Ipv4Addr>() {
+                    Ok(SocketAddr::from((addr, *port)))
+                } else if let Ok(addr) = addr.parse::<Ipv6Addr>() {
+                    Ok(SocketAddr::from((addr, *port)))
+                } else {
+                    Err(Error::new(
+                        ErrorKind::Unsupported,
+                        format!("domain address {addr} is not supported"),
+                    ))
+                }
+            }
+        }
+    }
+
     pub async fn read_from<R>(stream: &mut R) -> Result<Self>
     where
         R: AsyncRead + Unpin,
@@ -140,5 +158,35 @@ impl Display for Address {
             Address::DomainAddress(hostname, port) => write!(f, "{hostname}:{port}"),
             Address::SocketAddress(socket_addr) => write!(f, "{socket_addr}"),
         }
+    }
+}
+
+impl From<SocketAddr> for Address {
+    fn from(addr: SocketAddr) -> Self {
+        Address::SocketAddress(addr)
+    }
+}
+
+impl From<(Ipv4Addr, u16)> for Address {
+    fn from((addr, port): (Ipv4Addr, u16)) -> Self {
+        Address::SocketAddress(SocketAddr::from((addr, port)))
+    }
+}
+
+impl From<(Ipv6Addr, u16)> for Address {
+    fn from((addr, port): (Ipv6Addr, u16)) -> Self {
+        Address::SocketAddress(SocketAddr::from((addr, port)))
+    }
+}
+
+impl From<(String, u16)> for Address {
+    fn from((addr, port): (String, u16)) -> Self {
+        Address::DomainAddress(addr, port)
+    }
+}
+
+impl From<(&str, u16)> for Address {
+    fn from((addr, port): (&str, u16)) -> Self {
+        Address::DomainAddress(addr.to_owned(), port)
     }
 }
