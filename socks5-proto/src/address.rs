@@ -33,8 +33,8 @@ impl Address {
                     Ok(SocketAddr::from((addr, *port)))
                 } else {
                     Err(Error::new(
-                        ErrorKind::InvalidData,
-                        format!("Invalid address: {addr}"),
+                        ErrorKind::Unsupported,
+                        format!("domain address {addr} is not supported"),
                     ))
                 }
             }
