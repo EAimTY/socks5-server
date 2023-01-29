@@ -1,6 +1,6 @@
 [package]
 name = "socks5-proto"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["EAimTY <ea.imty@gmail.com>"]
 description = "Fundamental abstractions and async read / write functions for SOCKS5 protocol"
 categories = ["network-programming", "asynchronous"]
@@ -11,6 +11,6 @@ license = "GPL-3.0-or-later"
 repository = "https://github.com/EAimTY/socks5-server"
 
 [dependencies]
-byteorder = "1.4.*"
-bytes = "1.2.*"
-tokio = { version = "1.20.*", features = ["io-util"] }
+byteorder = { version = "1.4.3", default-features = false, features = ["std"] }
+bytes = { version = "1.3.0", default-features = false, features = ["std"] }
+tokio = { version = "1.24.2", default-features = false, features = ["io-util"] }
