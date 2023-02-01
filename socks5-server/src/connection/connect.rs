@@ -8,7 +8,7 @@ use std::{
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{
-        tcp::{ReadHalf, WriteHalf},
+        tcp::{OwnedReadHalf, OwnedWriteHalf, ReadHalf, WriteHalf},
         TcpStream,
     },
 };
@@ -85,10 +85,16 @@ impl Connect<Ready> {
         self.stream.peer_addr()
     }
 
-    /// Returns the read half of the stream.
+    /// Returns the read/write half of the stream.
     #[inline]
     pub fn split(&mut self) -> (ReadHalf, WriteHalf) {
         self.stream.split()
+    }
+
+    /// Returns the owned read/write half of the stream.
+    #[inline]
+    pub fn into_split(self) -> (OwnedReadHalf, OwnedWriteHalf) {
+        self.stream.into_split()
     }
 
     /// Shutdown the TCP stream.
