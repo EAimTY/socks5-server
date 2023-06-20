@@ -21,15 +21,15 @@ pub use crate::{
 /// The server can be constructed on a given socket address, or be created on a existing TcpListener.
 ///
 /// The authentication method can be configured with the [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) trait.
-pub struct Server {
+pub struct Server<O> {
     listener: TcpListener,
-    auth: Arc<dyn Auth + Send + Sync>,
+    auth: Arc<dyn Auth<Output = O> + Send + Sync>,
 }
 
-impl Server {
+impl<O> Server<O> {
     /// Create a new socks5 server with the given TCP listener and authentication method.
     #[inline]
-    pub fn new(listener: TcpListener, auth: Arc<dyn Auth + Send + Sync>) -> Self {
+    pub fn new(listener: TcpListener, auth: Arc<dyn Auth<Output = O> + Send + Sync>) -> Self {
         Self { listener, auth }
     }
 
@@ -37,7 +37,7 @@ impl Server {
     #[inline]
     pub async fn bind<T: ToSocketAddrs>(
         addr: T,
-        auth: Arc<dyn Auth + Send + Sync>,
+        auth: Arc<dyn Auth<Output = O> + Send + Sync>,
     ) -> Result<Self> {
         let listener = TcpListener::bind(addr).await?;
         Ok(Self::new(listener, auth))
@@ -45,7 +45,7 @@ impl Server {
 
     /// Accept an [`IncomingConnection`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html). The connection may not be a valid socks5 connection. You need to call [`IncomingConnection::handshake()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.handshake) to hand-shake it into a proper socks5 connection.
     #[inline]
-    pub async fn accept(&self) -> Result<(IncomingConnection, SocketAddr)> {
+    pub async fn accept(&self) -> Result<(IncomingConnection<O>, SocketAddr)> {
         let (stream, addr) = self.listener.accept().await?;
         Ok((IncomingConnection::new(stream, self.auth.clone()), addr))
     }
