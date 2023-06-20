@@ -17,23 +17,26 @@ pub mod bind;
 pub mod connect;
 
 /// A Incoming connection. This may not be a valid socks5 connection. You need to call [`handshake()`](#method.handshake) to perform the socks5 handshake. It will be converted to a proper socks5 connection after the handshake succeeds.
-pub struct IncomingConnection {
+pub struct IncomingConnection<O> {
     stream: TcpStream,
-    auth: Arc<dyn Auth + Send + Sync>,
+    auth: Arc<dyn Auth<Output = O> + Send + Sync>,
 }
 
-impl IncomingConnection {
+impl<O> IncomingConnection<O> {
     #[inline]
-    pub(crate) fn new(stream: TcpStream, auth: Arc<dyn Auth + Send + Sync>) -> Self {
+    pub(crate) fn new(stream: TcpStream, auth: Arc<dyn Auth<Output = O> + Send + Sync>) -> Self {
         IncomingConnection { stream, auth }
     }
 
     /// Perform the socks5 handshake on this connection.
-    pub async fn handshake(mut self) -> Result<Connection> {
-        if let Err(err) = self.auth().await {
-            let _ = self.stream.shutdown().await;
-            return Err(err);
-        }
+    pub async fn handshake(mut self) -> Result<Connection<O>> {
+        let auth_output = match self.auth().await {
+            Ok(output) => output,
+            Err(err) => {
+                let _ = self.stream.shutdown().await;
+                return Err(err);
+            }
+        };
 
         let req = match Request::read_from(&mut self.stream).await {
             Ok(req) => req,
@@ -49,14 +52,17 @@ impl IncomingConnection {
             Command::Associate => Ok(Connection::Associate(
                 Associate::<associate::NeedReply>::new(self.stream),
                 req.address,
+                auth_output,
             )),
             Command::Bind => Ok(Connection::Bind(
                 Bind::<bind::NeedFirstReply>::new(self.stream),
                 req.address,
+                auth_output,
             )),
             Command::Connect => Ok(Connection::Connect(
                 Connect::<connect::NeedReply>::new(self.stream),
                 req.address,
+                auth_output,
             )),
         }
     }
@@ -80,7 +86,7 @@ impl IncomingConnection {
     }
 
     #[inline]
-    async fn auth(&mut self) -> Result<()> {
+    async fn auth(&mut self) -> Result<O> {
         let hs_req = HandshakeRequest::read_from(&mut self.stream).await?;
         let chosen_method = self.auth.as_handshake_method();
 
@@ -100,7 +106,7 @@ impl IncomingConnection {
     }
 }
 
-impl Debug for IncomingConnection {
+impl<T> Debug for IncomingConnection<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         f.debug_struct("IncomingConnection")
             .field("stream", &self.stream)
@@ -114,8 +120,8 @@ impl Debug for IncomingConnection {
 /// - Bind
 /// - Connect
 #[derive(Debug)]
-pub enum Connection {
-    Associate(Associate<associate::NeedReply>, Address),
-    Bind(Bind<bind::NeedFirstReply>, Address),
-    Connect(Connect<connect::NeedReply>, Address),
+pub enum Connection<T> {
+    Associate(Associate<associate::NeedReply>, Address, T),
+    Bind(Bind<bind::NeedFirstReply>, Address, T),
+    Connect(Connect<connect::NeedReply>, Address, T),
 }

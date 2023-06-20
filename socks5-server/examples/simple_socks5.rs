@@ -19,21 +19,21 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn handle(conn: IncomingConnection) -> Result<()> {
+async fn handle(conn: IncomingConnection<()>) -> Result<()> {
     match conn.handshake().await? {
-        Connection::Associate(associate, _) => {
+        Connection::Associate(associate, _, _) => {
             let mut conn = associate
                 .reply(Reply::CommandNotSupported, Address::unspecified())
                 .await?;
             conn.shutdown().await?;
         }
-        Connection::Bind(bind, _) => {
+        Connection::Bind(bind, _, _) => {
             let mut conn = bind
                 .reply(Reply::CommandNotSupported, Address::unspecified())
                 .await?;
             conn.shutdown().await?;
         }
-        Connection::Connect(connect, addr) => {
+        Connection::Connect(connect, addr, _) => {
             let target = match addr {
                 Address::DomainAddress(domain, port) => TcpStream::connect((domain, port)).await,
                 Address::SocketAddress(addr) => TcpStream::connect(addr).await,

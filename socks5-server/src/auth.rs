@@ -24,20 +24,23 @@ use tokio::net::TcpStream;
 ///
 /// #[async_trait]
 /// impl Auth for MyAuth {
+///     type Output = usize;
+///
 ///     fn as_handshake_method(&self) -> HandshakeMethod {
 ///         HandshakeMethod(0x80)
 ///     }
 ///
-///     async fn execute(&self, stream: &mut TcpStream) -> Result<()> {
+///     async fn execute(&self, stream: &mut TcpStream) -> Result<usize> {
 ///         // do something
-///         Ok(())
+///         Ok(123)
 ///     }
 /// }
 /// ```
 #[async_trait]
 pub trait Auth {
+    type Output;
     fn as_handshake_method(&self) -> HandshakeMethod;
-    async fn execute(&self, stream: &mut TcpStream) -> Result<()>;
+    async fn execute(&self, stream: &mut TcpStream) -> Result<Self::Output>;
 }
 
 /// No authentication as the socks5 handshake method.
@@ -51,6 +54,8 @@ impl NoAuth {
 
 #[async_trait]
 impl Auth for NoAuth {
+    type Output = ();
+
     fn as_handshake_method(&self) -> HandshakeMethod {
         HandshakeMethod::None
     }
@@ -80,6 +85,8 @@ impl Password {
 
 #[async_trait]
 impl Auth for Password {
+    type Output = ();
+
     fn as_handshake_method(&self) -> HandshakeMethod {
         HandshakeMethod::Password
     }
