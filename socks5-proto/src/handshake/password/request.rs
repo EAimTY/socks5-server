@@ -20,7 +20,7 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn new(username: Vec<u8>, password: Vec<u8>) -> Self {
+    pub const fn new(username: Vec<u8>, password: Vec<u8>) -> Self {
         Self { username, password }
     }
 

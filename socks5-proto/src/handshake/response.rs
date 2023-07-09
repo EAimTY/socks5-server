@@ -19,7 +19,7 @@ pub struct Response {
 }
 
 impl Response {
-    pub fn new(method: Method) -> Self {
+    pub const fn new(method: Method) -> Self {
         Self { method }
     }
 
@@ -56,7 +56,7 @@ impl Response {
         buf.put_u8(u8::from(self.method));
     }
 
-    pub fn serialized_len(&self) -> usize {
+    pub const fn serialized_len(&self) -> usize {
         1 + 1
     }
 }

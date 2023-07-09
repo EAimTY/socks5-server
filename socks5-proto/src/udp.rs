@@ -19,7 +19,7 @@ pub struct UdpHeader {
 }
 
 impl UdpHeader {
-    pub fn new(frag: u8, address: Address) -> Self {
+    pub const fn new(frag: u8, address: Address) -> Self {
         Self { frag, address }
     }
 

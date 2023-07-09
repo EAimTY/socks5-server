@@ -19,7 +19,7 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn new(command: Command, address: Address) -> Self {
+    pub const fn new(command: Command, address: Address) -> Self {
         Self { command, address }
     }
 

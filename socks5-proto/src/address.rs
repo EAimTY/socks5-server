@@ -2,7 +2,7 @@ use bytes::BufMut;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::Error as IoError,
-    net::{Ipv4Addr, Ipv6Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     vec,
 };
 use thiserror::Error;
@@ -72,20 +72,18 @@ impl Address {
 
     pub(crate) fn write_to_buf<B: BufMut>(&self, buf: &mut B) {
         match self {
-            Self::SocketAddress(addr) => match addr {
-                SocketAddr::V4(addr) => {
-                    buf.put_u8(Self::ATYP_IPV4);
-                    buf.put_slice(&addr.ip().octets());
-                    buf.put_u16(addr.port());
+            Self::SocketAddress(SocketAddr::V4(addr)) => {
+                buf.put_u8(Self::ATYP_IPV4);
+                buf.put_slice(&addr.ip().octets());
+                buf.put_u16(addr.port());
+            }
+            Self::SocketAddress(SocketAddr::V6(addr)) => {
+                buf.put_u8(Self::ATYP_IPV6);
+                for seg in addr.ip().segments() {
+                    buf.put_u16(seg);
                 }
-                SocketAddr::V6(addr) => {
-                    buf.put_u8(Self::ATYP_IPV6);
-                    for seg in addr.ip().segments() {
-                        buf.put_u16(seg);
-                    }
-                    buf.put_u16(addr.port());
-                }
-            },
+                buf.put_u16(addr.port());
+            }
             Self::DomainAddress(addr, port) => {
                 buf.put_u8(Self::ATYP_FQDN);
                 buf.put_u8(addr.len() as u8);
@@ -95,8 +93,8 @@ impl Address {
         }
     }
 
-    pub fn unspecified() -> Self {
-        Address::SocketAddress(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
+    pub const fn unspecified() -> Self {
+        Address::SocketAddress(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0))
     }
 
     pub fn serialized_len(&self) -> usize {

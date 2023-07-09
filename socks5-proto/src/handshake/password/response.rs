@@ -22,7 +22,7 @@ impl Response {
     const FAILED: u8 = 0xff;
     const SUCCEEDED: u8 = 0x00;
 
-    pub fn new(status: bool) -> Self {
+    pub const fn new(status: bool) -> Self {
         Self { status }
     }
 
@@ -71,7 +71,7 @@ impl Response {
         }
     }
 
-    pub fn serialized_len(&self) -> usize {
+    pub const fn serialized_len(&self) -> usize {
         1 + 1
     }
 }

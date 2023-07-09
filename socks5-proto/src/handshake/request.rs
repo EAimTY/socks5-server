@@ -22,7 +22,7 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn new(methods: Vec<Method>) -> Self {
+    pub const fn new(methods: Vec<Method>) -> Self {
         Self { methods }
     }
 

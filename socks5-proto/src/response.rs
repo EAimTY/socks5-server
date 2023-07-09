@@ -19,7 +19,7 @@ pub struct Response {
 }
 
 impl Response {
-    pub fn new(reply: Reply, address: Address) -> Self {
+    pub const fn new(reply: Reply, address: Address) -> Self {
         Self { reply, address }
     }
 
