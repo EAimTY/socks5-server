@@ -1,6 +1,7 @@
 use socks5_proto::{Address, Reply, Response};
 use std::{
     io::{IoSlice, Result},
+    marker::PhantomData,
     net::SocketAddr,
     pin::Pin,
     task::{Context, Poll},
@@ -19,7 +20,7 @@ use tokio::{
 #[derive(Debug)]
 pub struct Bind<S> {
     stream: TcpStream,
-    _state: S,
+    _state: PhantomData<S>,
 }
 
 #[derive(Debug)]
@@ -36,7 +37,7 @@ impl Bind<NeedFirstReply> {
     pub(super) fn new(stream: TcpStream) -> Self {
         Self {
             stream,
-            _state: NeedFirstReply,
+            _state: PhantomData,
         }
     }
 
@@ -72,7 +73,7 @@ impl Bind<NeedSecondReply> {
     fn new(stream: TcpStream) -> Self {
         Self {
             stream,
-            _state: NeedSecondReply,
+            _state: PhantomData,
         }
     }
 
@@ -108,7 +109,7 @@ impl Bind<Ready> {
     fn new(stream: TcpStream) -> Self {
         Self {
             stream,
-            _state: Ready,
+            _state: PhantomData,
         }
     }
 

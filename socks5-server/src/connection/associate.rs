@@ -2,6 +2,7 @@ use bytes::{Bytes, BytesMut};
 use socks5_proto::{Address, Reply, Response, UdpHeader};
 use std::{
     io::Result,
+    marker::PhantomData,
     net::SocketAddr,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -16,7 +17,7 @@ use tokio::{
 #[derive(Debug)]
 pub struct Associate<S> {
     stream: TcpStream,
-    _state: S,
+    _state: PhantomData<S>,
 }
 
 #[derive(Debug)]
@@ -30,7 +31,7 @@ impl Associate<NeedReply> {
     pub(super) fn new(stream: TcpStream) -> Self {
         Self {
             stream,
-            _state: NeedReply,
+            _state: PhantomData,
         }
     }
 
@@ -66,7 +67,7 @@ impl Associate<Ready> {
     fn new(stream: TcpStream) -> Self {
         Self {
             stream,
-            _state: Ready,
+            _state: PhantomData,
         }
     }
 

@@ -1,6 +1,7 @@
 use socks5_proto::{Address, Reply, Response};
 use std::{
     io::{IoSlice, Result},
+    marker::PhantomData,
     net::SocketAddr,
     pin::Pin,
     task::{Context, Poll},
@@ -19,7 +20,7 @@ use tokio::{
 #[derive(Debug)]
 pub struct Connect<S> {
     stream: TcpStream,
-    _state: S,
+    _state: PhantomData<S>,
 }
 
 #[derive(Debug)]
@@ -33,7 +34,7 @@ impl Connect<NeedReply> {
     pub(super) fn new(stream: TcpStream) -> Self {
         Self {
             stream,
-            _state: NeedReply,
+            _state: PhantomData,
         }
     }
 
@@ -69,7 +70,7 @@ impl Connect<Ready> {
     fn new(stream: TcpStream) -> Self {
         Self {
             stream,
-            _state: Ready,
+            _state: PhantomData,
         }
     }
 
