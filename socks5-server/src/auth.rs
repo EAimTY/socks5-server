@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use socks5_proto::handshake::{
-    password::{Error, Request as PasswordRequest, Response as PasswordResponse},
+    password::{Error as PasswordError, Request as PasswordRequest, Response as PasswordResponse},
     Method,
 };
 use tokio::net::TcpStream;
@@ -83,13 +83,13 @@ impl Password {
 
 #[async_trait]
 impl Auth for Password {
-    type Output = Result<bool, Error>;
+    type Output = Result<bool, PasswordError>;
 
     fn as_handshake_method(&self) -> Method {
         Method::PASSWORD
     }
 
-    async fn execute(&self, stream: &mut TcpStream) -> Result<bool, Error> {
+    async fn execute(&self, stream: &mut TcpStream) -> Result<bool, PasswordError> {
         let req = PasswordRequest::read_from(stream).await?;
 
         if (&req.username, &req.password) == (&self.username, &self.password) {

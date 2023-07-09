@@ -14,18 +14,18 @@ pub mod associate;
 pub mod bind;
 pub mod connect;
 
-pub struct Authenticating<O> {
+pub struct IncomingConnection<O> {
     stream: TcpStream,
     auth: Arc<dyn Auth<Output = O> + Send + Sync>,
 }
 
-impl<O> Authenticating<O> {
+impl<O> IncomingConnection<O> {
     #[inline]
     pub(crate) fn new(stream: TcpStream, auth: Arc<dyn Auth<Output = O> + Send + Sync>) -> Self {
         Self { stream, auth }
     }
 
-    pub async fn authenticate(mut self) -> Result<(WaitingCommand, O), (TcpStream, Error)> {
+    pub async fn authenticate(mut self) -> Result<(Authenticated, O), (TcpStream, Error)> {
         let req = match HandshakeRequest::read_from(&mut self.stream).await {
             Ok(req) => req,
             Err(err) => return Err((self.stream, err)),
@@ -41,7 +41,7 @@ impl<O> Authenticating<O> {
 
             let output = self.auth.execute(&mut self.stream).await;
 
-            Ok((WaitingCommand::new(self.stream), output))
+            Ok((Authenticated::new(self.stream), output))
         } else {
             let resp = HandshakeResponse::new(HandshakeMethod::UNACCEPTABLE);
 
@@ -61,9 +61,9 @@ impl<O> Authenticating<O> {
     }
 }
 
-pub struct WaitingCommand(TcpStream);
+pub struct Authenticated(TcpStream);
 
-impl WaitingCommand {
+impl Authenticated {
     #[inline]
     fn new(stream: TcpStream) -> Self {
         Self(stream)

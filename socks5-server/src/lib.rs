@@ -1,6 +1,5 @@
 #![doc = include_str!("../README.md")]
 
-use command::Authenticating;
 use std::{io::Result, net::SocketAddr, sync::Arc};
 use tokio::net::{TcpListener, ToSocketAddrs};
 
@@ -13,7 +12,7 @@ pub use crate::{
         associate::{Associate, AssociatedUdpSocket},
         bind::Bind,
         connect::Connect,
-        Command, WaitingCommand,
+        Authenticated, Command, IncomingConnection,
     },
 };
 
@@ -49,9 +48,9 @@ impl<AuthOutput> Server<AuthOutput> {
 
     /// Accept an [`IncomingConnection`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html). The connection may not be a valid socks5 connection. You need to call [`IncomingConnection::handshake()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.handshake) to hand-shake it into a proper socks5 connection.
     #[inline]
-    pub async fn accept(&self) -> Result<(Authenticating<AuthOutput>, SocketAddr)> {
+    pub async fn accept(&self) -> Result<(IncomingConnection<AuthOutput>, SocketAddr)> {
         let (stream, addr) = self.listener.accept().await?;
-        Ok((Authenticating::new(stream, self.auth.clone()), addr))
+        Ok((IncomingConnection::new(stream, self.auth.clone()), addr))
     }
 
     /// Get the the local socket address binded to this server

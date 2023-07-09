@@ -1,5 +1,5 @@
 use socks5_proto::{Address, Error, Reply};
-use socks5_server::{auth::NoAuth, command::Authenticating, Command, Server};
+use socks5_server::{auth::NoAuth, Command, IncomingConnection, Server};
 use std::{io::Error as IoError, sync::Arc};
 use tokio::{
     io::{self, AsyncWriteExt},
@@ -22,7 +22,7 @@ async fn main() -> Result<(), IoError> {
     Ok(())
 }
 
-async fn handle(conn: Authenticating<()>) -> Result<(), Error> {
+async fn handle(conn: IncomingConnection<()>) -> Result<(), Error> {
     let conn = match conn.authenticate().await {
         Ok((conn, _)) => conn,
         Err((mut conn, err)) => {
