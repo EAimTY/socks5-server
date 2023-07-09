@@ -1,13 +1,13 @@
 use self::{associate::Associate, bind::Bind, connect::Connect};
 use crate::Auth;
+use socks5_proto::Error;
 use socks5_proto::{
-    Address, Command as ProtocolCommand, HandshakeMethod, HandshakeRequest, HandshakeResponse,
-    Request,
+    handshake::{
+        Method as HandshakeMethod, Request as HandshakeRequest, Response as HandshakeResponse,
+    },
+    Address, Command as ProtocolCommand, ProtocolError, Request,
 };
-use std::{
-    io::{Error, ErrorKind},
-    sync::Arc,
-};
+use std::sync::Arc;
 use tokio::net::TcpStream;
 
 pub mod associate;
@@ -36,28 +36,27 @@ impl<O> Authenticating<O> {
             let resp = HandshakeResponse::new(chosen_method);
 
             if let Err(err) = resp.write_to(&mut self.stream).await {
-                return Err((self.stream, err));
+                return Err((self.stream, Error::Io(err)));
             }
 
-            let output = match self.auth.execute(&mut self.stream).await {
-                Ok(req) => req,
-                Err(err) => return Err((self.stream, err)),
-            };
+            let output = self.auth.execute(&mut self.stream).await;
 
             Ok((WaitingCommand::new(self.stream), output))
         } else {
-            let resp = HandshakeResponse::new(HandshakeMethod::Unacceptable);
+            let resp = HandshakeResponse::new(HandshakeMethod::UNACCEPTABLE);
 
             if let Err(err) = resp.write_to(&mut self.stream).await {
-                return Err((self.stream, err));
+                return Err((self.stream, Error::Io(err)));
             }
 
-            let err = Error::new(
-                ErrorKind::Unsupported,
-                "No available handshake method provided by client",
-            );
-
-            Err((self.stream, err))
+            Err((
+                self.stream,
+                Error::Protocol(ProtocolError::NoAcceptableHandshakeMethod {
+                    version: socks5_proto::SOCKS_VERSION,
+                    chosen_method,
+                    methods: req.methods,
+                }),
+            ))
         }
     }
 }

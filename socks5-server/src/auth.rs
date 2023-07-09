@@ -1,9 +1,8 @@
 use async_trait::async_trait;
-use socks5_proto::{
-    handshake::password::{Request as PasswordRequest, Response as PasswordResponse},
-    HandshakeMethod,
+use socks5_proto::handshake::{
+    password::{Error, Request as PasswordRequest, Response as PasswordResponse},
+    Method,
 };
-use std::io::{Error, ErrorKind, Result};
 use tokio::net::TcpStream;
 
 /// This trait is for defining the socks5 authentication method.
@@ -40,8 +39,8 @@ use tokio::net::TcpStream;
 pub trait Auth {
     type Output;
 
-    fn as_handshake_method(&self) -> HandshakeMethod;
-    async fn execute(&self, stream: &mut TcpStream) -> Result<Self::Output>;
+    fn as_handshake_method(&self) -> Method;
+    async fn execute(&self, stream: &mut TcpStream) -> Self::Output;
 }
 
 /// No authentication as the socks5 handshake method.
@@ -57,13 +56,11 @@ impl NoAuth {
 impl Auth for NoAuth {
     type Output = ();
 
-    fn as_handshake_method(&self) -> HandshakeMethod {
-        HandshakeMethod::None
+    fn as_handshake_method(&self) -> Method {
+        Method::NONE
     }
 
-    async fn execute(&self, _: &mut TcpStream) -> Result<()> {
-        Ok(())
-    }
+    async fn execute(&self, _: &mut TcpStream) {}
 }
 
 impl Default for NoAuth {
@@ -86,26 +83,23 @@ impl Password {
 
 #[async_trait]
 impl Auth for Password {
-    type Output = ();
+    type Output = Result<bool, Error>;
 
-    fn as_handshake_method(&self) -> HandshakeMethod {
-        HandshakeMethod::Password
+    fn as_handshake_method(&self) -> Method {
+        Method::PASSWORD
     }
 
-    async fn execute(&self, stream: &mut TcpStream) -> Result<()> {
+    async fn execute(&self, stream: &mut TcpStream) -> Result<bool, Error> {
         let req = PasswordRequest::read_from(stream).await?;
 
         if (&req.username, &req.password) == (&self.username, &self.password) {
             let resp = PasswordResponse::new(true);
             resp.write_to(stream).await?;
-            Ok(())
+            Ok(true)
         } else {
             let resp = PasswordResponse::new(false);
             resp.write_to(stream).await?;
-            Err(Error::new(
-                ErrorKind::InvalidData,
-                "SOCKS5 username / password authentication failed",
-            ))
+            Ok(false)
         }
     }
 }

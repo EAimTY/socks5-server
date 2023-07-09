@@ -1,4 +1,4 @@
-use crate::{Command, Reply};
+use crate::{handshake::Method, Command, Reply};
 use std::io::{Error as IoError, ErrorKind};
 use thiserror::Error;
 
@@ -6,6 +6,13 @@ use thiserror::Error;
 pub enum ProtocolError {
     #[error("Unsupported SOCKS version {version:#04x}")]
     ProtocolVersion { version: u8 },
+
+    #[error("No acceptable handshake method")]
+    NoAcceptableHandshakeMethod {
+        version: u8,
+        chosen_method: Method,
+        methods: Vec<Method>,
+    },
 
     #[error("Unsupported command {command:#04x}")]
     InvalidCommand { version: u8, command: u8 },

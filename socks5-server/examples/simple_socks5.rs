@@ -1,13 +1,13 @@
-use socks5_proto::{Address, Reply};
+use socks5_proto::{Address, Error, Reply};
 use socks5_server::{auth::NoAuth, command::Authenticating, Command, Server};
-use std::{io::Result, sync::Arc};
+use std::{io::Error as IoError, sync::Arc};
 use tokio::{
     io::{self, AsyncWriteExt},
     net::TcpStream,
 };
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), IoError> {
     let server = Server::bind("127.0.0.1:5000", Arc::new(NoAuth)).await?;
 
     while let Ok((conn, _)) = server.accept().await {
@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn handle(conn: Authenticating<()>) -> Result<()> {
+async fn handle(conn: Authenticating<()>) -> Result<(), Error> {
     let conn = match conn.authenticate().await {
         Ok((conn, _)) => conn,
         Err((mut conn, err)) => {
@@ -46,7 +46,10 @@ async fn handle(conn: Authenticating<()>) -> Result<()> {
         }
         Ok(Command::Connect(connect, addr)) => {
             let target = match addr {
-                Address::DomainAddress(domain, port) => TcpStream::connect((domain, port)).await,
+                Address::DomainAddress(domain, port) => {
+                    let domain = String::from_utf8(domain).unwrap();
+                    TcpStream::connect((domain, port)).await
+                }
                 Address::SocketAddress(addr) => TcpStream::connect(addr).await,
             };
 
