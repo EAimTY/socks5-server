@@ -10,7 +10,7 @@ use tokio::net::TcpStream;
 ///
 /// Pre-defined authentication methods can be found in the [`auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/index.html) module.
 ///
-/// You can create your own authentication method by implementing this trait. Since GAT is not stabled yet, [async_trait](https://docs.rs/async-trait/latest/async_trait/index.html) needs to be used.
+/// You can create your own authentication method by implementing this trait. Note that this library will not implicitly close any connection if authentication failed. You should close the connection in `execute()` / on the `TcpStream` attached to the error returned by `Authenticating::auth()`.
 ///
 /// # Example
 /// ```rust
@@ -39,6 +39,7 @@ use tokio::net::TcpStream;
 #[async_trait]
 pub trait Auth {
     type Output;
+
     fn as_handshake_method(&self) -> HandshakeMethod;
     async fn execute(&self, stream: &mut TcpStream) -> Result<Self::Output>;
 }
