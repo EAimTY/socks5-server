@@ -1,5 +1,3 @@
-use std::io::{Error, ErrorKind};
-
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Command {
     Connect,
@@ -8,23 +6,20 @@ pub enum Command {
 }
 
 impl Command {
-    const CMD_CONNECT: u8 = 0x01;
-    const CMD_BIND: u8 = 0x02;
-    const CMD_ASSOCIATE: u8 = 0x03;
+    const CONNECT: u8 = 0x01;
+    const BIND: u8 = 0x02;
+    const ASSOCIATE: u8 = 0x03;
 }
 
 impl TryFrom<u8> for Command {
-    type Error = Error;
+    type Error = u8;
 
     fn try_from(code: u8) -> Result<Self, Self::Error> {
         match code {
-            Self::CMD_CONNECT => Ok(Command::Connect),
-            Self::CMD_BIND => Ok(Command::Bind),
-            Self::CMD_ASSOCIATE => Ok(Command::Associate),
-            code => Err(Error::new(
-                ErrorKind::Unsupported,
-                format!("Unsupported command {0:#x}", code),
-            )),
+            Self::CONNECT => Ok(Self::Connect),
+            Self::BIND => Ok(Self::Bind),
+            Self::ASSOCIATE => Ok(Self::Associate),
+            code => Err(code),
         }
     }
 }
@@ -32,9 +27,9 @@ impl TryFrom<u8> for Command {
 impl From<Command> for u8 {
     fn from(cmd: Command) -> Self {
         match cmd {
-            Command::Connect => Command::CMD_CONNECT,
-            Command::Bind => Command::CMD_BIND,
-            Command::Associate => Command::CMD_ASSOCIATE,
+            Command::Connect => Command::CONNECT,
+            Command::Bind => Command::BIND,
+            Command::Associate => Command::ASSOCIATE,
         }
     }
 }

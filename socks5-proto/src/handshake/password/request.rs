@@ -1,5 +1,6 @@
+use super::Error;
 use bytes::{BufMut, BytesMut};
-use std::io::{Error, ErrorKind, Result};
+use std::io::Error as IoError;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// SOCKS5 password handshake request
@@ -23,40 +24,36 @@ impl Request {
         Self { username, password }
     }
 
-    pub async fn read_from<R>(r: &mut R) -> Result<Self>
+    pub async fn read_from<R>(r: &mut R) -> Result<Self, Error>
     where
         R: AsyncRead + Unpin,
     {
         let ver = r.read_u8().await?;
 
         if ver != super::SUBNEGOTIATION_VERSION {
-            return Err(Error::new(
-                ErrorKind::Unsupported,
-                format!("Unsupported sub-negotiation version {0:#x}", ver),
-            ));
+            return Err(Error::SubNegotiationVersion { version: ver });
         }
 
         let ulen = r.read_u8().await?;
-        let mut buf = vec![0; ulen as usize + 1];
-        r.read_exact(&mut buf).await?;
+        let mut username = vec![0; ulen as usize];
+        r.read_exact(&mut username).await?;
 
-        let plen = buf[ulen as usize];
-        buf.truncate(ulen as usize);
-        let username = buf;
-
+        let plen = r.read_u8().await?;
         let mut password = vec![0; plen as usize];
         r.read_exact(&mut password).await?;
 
-        Ok(Self { username, password })
+        Ok(Self::new(username, password))
     }
 
-    pub async fn write_to<W>(&self, w: &mut W) -> Result<()>
+    pub async fn write_to<W>(&self, w: &mut W) -> Result<(), IoError>
     where
         W: AsyncWrite + Unpin,
     {
         let mut buf = BytesMut::with_capacity(self.serialized_len());
         self.write_to_buf(&mut buf);
-        w.write_all(&buf).await
+        w.write_all(&buf).await?;
+
+        Ok(())
     }
 
     pub fn write_to_buf<B: BufMut>(&self, buf: &mut B) {

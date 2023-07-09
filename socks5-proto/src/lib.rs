@@ -2,6 +2,7 @@
 
 mod address;
 mod command;
+mod error;
 mod reply;
 mod request;
 mod response;
@@ -12,7 +13,7 @@ pub mod handshake;
 pub use self::{
     address::Address,
     command::Command,
-    handshake::{HandshakeMethod, HandshakeRequest, HandshakeResponse},
+    error::{Error, ProtocolError},
     reply::Reply,
     request::Request,
     response::Response,

@@ -1,6 +1,6 @@
-use crate::Address;
+use crate::{address::AddressError, Address, Error, ProtocolError};
 use bytes::{BufMut, BytesMut};
-use std::io::Result;
+use std::io::Error as IoError;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// SOCKS5 UDP packet header
@@ -23,26 +23,36 @@ impl UdpHeader {
         Self { frag, address }
     }
 
-    pub async fn read_from<R>(r: &mut R) -> Result<Self>
+    pub async fn read_from<R>(r: &mut R) -> Result<Self, Error>
     where
         R: AsyncRead + Unpin,
     {
-        let mut buf = [0; 3];
-        r.read_exact(&mut buf).await?;
+        r.read_exact(&mut [0; 2]).await?;
 
-        let frag = buf[2];
+        let frag = r.read_u8().await?;
 
-        let address = Address::read_from(r).await?;
-        Ok(Self { frag, address })
+        let addr = Address::read_from(r).await.map_err(|err| match err {
+            AddressError::Io(err) => Error::Io(err),
+            AddressError::InvalidType(code) => {
+                Error::Protocol(ProtocolError::InvalidAddressTypeInUdpHeader {
+                    frag,
+                    address_type: code,
+                })
+            }
+        })?;
+
+        Ok(Self::new(frag, addr))
     }
 
-    pub async fn write_to<W>(&self, w: &mut W) -> Result<()>
+    pub async fn write_to<W>(&self, w: &mut W) -> Result<(), IoError>
     where
         W: AsyncWrite + Unpin,
     {
         let mut buf = BytesMut::with_capacity(self.serialized_len());
         self.write_to_buf(&mut buf);
-        w.write_all(&buf).await
+        w.write_all(&buf).await?;
+
+        Ok(())
     }
 
     pub fn write_to_buf<B: BufMut>(&self, buf: &mut B) {
@@ -52,10 +62,6 @@ impl UdpHeader {
     }
 
     pub fn serialized_len(&self) -> usize {
-        3 + self.address.serialized_len()
-    }
-
-    pub const fn max_serialized_len() -> usize {
-        3 + Address::max_serialized_len()
+        2 + 1 + self.address.serialized_len()
     }
 }

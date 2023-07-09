@@ -1,6 +1,7 @@
-use crate::HandshakeMethod;
+use super::Method;
+use crate::{Error, ProtocolError};
 use bytes::{BufMut, BytesMut};
-use std::io::{Error, ErrorKind, Result};
+use std::io::Error as IoError;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// SOCKS5 handshake response
@@ -13,40 +14,41 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 /// +-----+--------+
 /// ```
 #[derive(Clone, Debug)]
-pub struct HandshakeResponse {
-    pub method: HandshakeMethod,
+pub struct Response {
+    pub method: Method,
 }
 
-impl HandshakeResponse {
-    pub fn new(method: HandshakeMethod) -> Self {
+impl Response {
+    pub fn new(method: Method) -> Self {
         Self { method }
     }
 
-    pub async fn read_from<R>(r: &mut R) -> Result<Self>
+    pub async fn read_from<R>(r: &mut R) -> Result<Self, Error>
     where
         R: AsyncRead + Unpin,
     {
         let ver = r.read_u8().await?;
 
         if ver != crate::SOCKS_VERSION {
-            return Err(Error::new(
-                ErrorKind::Unsupported,
-                format!("Unsupported SOCKS version {0:#x}", ver),
-            ));
+            return Err(Error::Protocol(ProtocolError::ProtocolVersion {
+                version: ver,
+            }));
         }
 
-        let method = HandshakeMethod::from(r.read_u8().await?);
+        let method = Method::from(r.read_u8().await?);
 
-        Ok(Self { method })
+        Ok(Self::new(method))
     }
 
-    pub async fn write_to<W>(&self, w: &mut W) -> Result<()>
+    pub async fn write_to<W>(&self, w: &mut W) -> Result<(), IoError>
     where
         W: AsyncWrite + Unpin,
     {
         let mut buf = BytesMut::with_capacity(self.serialized_len());
         self.write_to_buf(&mut buf);
-        w.write_all(&buf).await
+        w.write_all(&buf).await?;
+
+        Ok(())
     }
 
     pub fn write_to_buf<B: BufMut>(&self, buf: &mut B) {
@@ -55,6 +57,6 @@ impl HandshakeResponse {
     }
 
     pub fn serialized_len(&self) -> usize {
-        2
+        1 + 1
     }
 }

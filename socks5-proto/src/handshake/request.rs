@@ -1,7 +1,8 @@
-use crate::HandshakeMethod;
+use super::Method;
+use crate::{Error, ProtocolError};
 use bytes::{BufMut, BytesMut};
 use std::{
-    io::{Error, ErrorKind, Result},
+    io::Error as IoError,
     mem::{self, ManuallyDrop},
 };
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -16,26 +17,25 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 /// +-----+----------+----------|
 /// ```
 #[derive(Clone, Debug)]
-pub struct HandshakeRequest {
-    pub methods: Vec<HandshakeMethod>,
+pub struct Request {
+    pub methods: Vec<Method>,
 }
 
-impl HandshakeRequest {
-    pub fn new(methods: Vec<HandshakeMethod>) -> Self {
+impl Request {
+    pub fn new(methods: Vec<Method>) -> Self {
         Self { methods }
     }
 
-    pub async fn read_from<R>(r: &mut R) -> Result<Self>
+    pub async fn read_from<R>(r: &mut R) -> Result<Self, Error>
     where
         R: AsyncRead + Unpin,
     {
         let ver = r.read_u8().await?;
 
         if ver != crate::SOCKS_VERSION {
-            return Err(Error::new(
-                ErrorKind::Unsupported,
-                format!("Unsupported SOCKS version {0:#x}", ver),
-            ));
+            return Err(Error::Protocol(ProtocolError::ProtocolVersion {
+                version: ver,
+            }));
         }
 
         let mlen = r.read_u8().await?;
@@ -46,22 +46,24 @@ impl HandshakeRequest {
             let mut methods = ManuallyDrop::new(methods);
 
             Vec::from_raw_parts(
-                methods.as_mut_ptr() as *mut HandshakeMethod,
+                methods.as_mut_ptr() as *mut Method,
                 methods.len(),
                 methods.capacity(),
             )
         };
 
-        Ok(Self { methods })
+        Ok(Self::new(methods))
     }
 
-    pub async fn write_to<W>(&self, w: &mut W) -> Result<()>
+    pub async fn write_to<W>(&self, w: &mut W) -> Result<(), IoError>
     where
         W: AsyncWrite + Unpin,
     {
         let mut buf = BytesMut::with_capacity(self.serialized_len());
         self.write_to_buf(&mut buf);
-        w.write_all(&buf).await
+        w.write_all(&buf).await?;
+
+        Ok(())
     }
 
     pub fn write_to_buf<B: BufMut>(&self, buf: &mut B) {
@@ -73,6 +75,6 @@ impl HandshakeRequest {
     }
 
     pub fn serialized_len(&self) -> usize {
-        2 + self.methods.len()
+        1 + 1 + self.methods.len()
     }
 }

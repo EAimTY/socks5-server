@@ -1,23 +1,22 @@
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
-pub struct HandshakeMethod(pub u8);
+pub struct Method(pub u8);
 
-#[allow(non_upper_case_globals)]
-impl HandshakeMethod {
-    pub const None: Self = Self(0x00);
-    pub const Gssapi: Self = Self(0x01);
-    pub const Password: Self = Self(0x02);
-    pub const Unacceptable: Self = Self(0xff);
+impl Method {
+    pub const NONE: Self = Self(0x00);
+    pub const GSSAPI: Self = Self(0x01);
+    pub const PASSWORD: Self = Self(0x02);
+    pub const UNACCEPTABLE: Self = Self(0xff);
 }
 
-impl From<u8> for HandshakeMethod {
+impl From<u8> for Method {
     fn from(value: u8) -> Self {
         Self(value)
     }
 }
 
-impl From<HandshakeMethod> for u8 {
-    fn from(value: HandshakeMethod) -> Self {
+impl From<Method> for u8 {
+    fn from(value: Method) -> Self {
         value.0
     }
 }

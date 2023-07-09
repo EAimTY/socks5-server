@@ -4,4 +4,4 @@ mod response;
 
 pub mod password;
 
-pub use self::{method::HandshakeMethod, request::HandshakeRequest, response::HandshakeResponse};
+pub use self::{method::Method, request::Request, response::Response};
