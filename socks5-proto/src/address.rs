@@ -123,6 +123,6 @@ impl Display for Address {
 pub(crate) enum AddressError {
     #[error(transparent)]
     Io(#[from] IoError),
-    #[error("Invalid address type {0:#x}")]
+    #[error("Invalid address type {0:#04x}")]
     InvalidType(u8),
 }

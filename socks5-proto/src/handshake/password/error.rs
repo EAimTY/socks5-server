@@ -6,10 +6,10 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] IoError),
 
-    #[error("Unsupported sub-negotiation version {version:#x}")]
+    #[error("Unsupported sub-negotiation version {version:#04x}")]
     SubNegotiationVersion { version: u8 },
 
-    #[error("Unsupported sub-negotiation status {status:#x}")]
+    #[error("Unsupported sub-negotiation status {status:#04x}")]
     SubNegotiationStatus { version: u8, status: u8 },
 }
 
