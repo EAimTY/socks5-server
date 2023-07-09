@@ -30,6 +30,27 @@ pub(crate) type AuthAdaptor<O> = Arc<dyn Auth<Output = O> + Send + Sync>;
 /// A `(TcpListener, Arc<dyn Auth<Output = O> + Send + Sync>)` can be converted into a `Server<O>` with `From` trait. Also, a `Server<O>` can be converted back.
 ///
 /// Generic type `<O>` is the output type of the authentication adapter. See module [`auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/index.html).
+///
+/// # Example
+///
+/// ```rust
+/// use socks5_server::{auth::NoAuth, Server};
+/// use std::sync::Arc;
+/// use tokio::net::TcpListener;
+///
+/// async fn listen() {
+///     let listener = TcpListener::bind("127.0.0.1:5000").await.unwrap();
+///     let auth = Arc::new(NoAuth) as Arc<_>;
+///
+///     let server = Server::from((listener, auth));
+///
+///     while let Ok((conn, _)) = server.accept().await {
+///         tokio::spawn(async move {
+///             todo!();
+///         });
+///     }
+/// }
+/// ```
 pub struct Server<O> {
     listener: TcpListener,
     auth: AuthAdaptor<O>,
