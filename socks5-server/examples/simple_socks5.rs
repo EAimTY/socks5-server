@@ -3,12 +3,15 @@ use socks5_server::{auth::NoAuth, Command, IncomingConnection, Server};
 use std::{io::Error as IoError, sync::Arc};
 use tokio::{
     io::{self, AsyncWriteExt},
-    net::TcpStream,
+    net::{TcpListener, TcpStream},
 };
 
 #[tokio::main]
 async fn main() -> Result<(), IoError> {
-    let server = Server::bind("127.0.0.1:5000", Arc::new(NoAuth)).await?;
+    let listener = TcpListener::bind("127.0.0.1:5000").await?;
+    let auth = Arc::new(NoAuth) as Arc<_>;
+
+    let server = Server::from((listener, auth));
 
     while let Ok((conn, _)) = server.accept().await {
         tokio::spawn(async move {

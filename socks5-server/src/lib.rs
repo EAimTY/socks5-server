@@ -1,7 +1,12 @@
 #![doc = include_str!("../README.md")]
 
-use std::{io::Result, net::SocketAddr, sync::Arc};
-use tokio::net::{TcpListener, ToSocketAddrs};
+use std::{
+    io::Error,
+    net::SocketAddr,
+    sync::Arc,
+    task::{Context, Poll},
+};
+use tokio::net::TcpListener;
 
 pub mod auth;
 pub mod command;
@@ -16,46 +21,80 @@ pub use crate::{
     },
 };
 
-/// The socks5 server itself.
+type AuthAdaptor<O> = Arc<dyn Auth<Output = O> + Send + Sync>;
+
+/// A socks5 server listener
 ///
-/// The server can be constructed on a given socket address, or be created on a existing TcpListener.
+/// This server listens on a socket and treats incoming connections as socks5 connections.
 ///
-/// The authentication method can be configured with the [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) trait.
-pub struct Server<AuthOutput> {
+/// A `(TcpListener, Arc<dyn Auth<Output = O> + Send + Sync>)` can be converted into a `Server<O>` with `From` trait. Also, a `Server<O>` can be converted back.
+///
+/// Generic type `<O>` is the output type of the authentication adapter. See module [`auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/index.html).
+pub struct Server<O> {
     listener: TcpListener,
-    auth: Arc<dyn Auth<Output = AuthOutput> + Send + Sync>,
+    auth: AuthAdaptor<O>,
 }
 
-impl<AuthOutput> Server<AuthOutput> {
-    /// Create a new socks5 server with the given TCP listener and authentication method.
+impl<O> Server<O> {
+    /// Accept an [`IncomingConnection<O>`](https://docs.rs/socks5-server/latest/socks5_server/command/struct.IncomingConnection.html).
+    ///
+    /// The connection is only a freshly created TCP connection and may not be a valid socks5 connection. You should call [`IncomingConnection::authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/command/struct.IncomingConnection.html#method.authenticate) to perform a socks5 authentication handshake.
     #[inline]
-    pub fn new(
-        listener: TcpListener,
-        auth: Arc<dyn Auth<Output = AuthOutput> + Send + Sync>,
-    ) -> Self {
-        Self { listener, auth }
-    }
-
-    /// Create a new socks5 server on the given socket address and authentication method.
-    #[inline]
-    pub async fn bind<T: ToSocketAddrs>(
-        addr: T,
-        auth: Arc<dyn Auth<Output = AuthOutput> + Send + Sync>,
-    ) -> Result<Self> {
-        let listener = TcpListener::bind(addr).await?;
-        Ok(Self::new(listener, auth))
-    }
-
-    /// Accept an [`IncomingConnection`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html). The connection may not be a valid socks5 connection. You need to call [`IncomingConnection::handshake()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.handshake) to hand-shake it into a proper socks5 connection.
-    #[inline]
-    pub async fn accept(&self) -> Result<(IncomingConnection<AuthOutput>, SocketAddr)> {
+    pub async fn accept(&self) -> Result<(IncomingConnection<O>, SocketAddr), Error> {
         let (stream, addr) = self.listener.accept().await?;
         Ok((IncomingConnection::new(stream, self.auth.clone()), addr))
     }
 
-    /// Get the the local socket address binded to this server
+    /// Polls to accept an [`IncomingConnection<O>`](https://docs.rs/socks5-server/latest/socks5_server/command/struct.IncomingConnection.html).
+    ///
+    /// The connection is only a freshly created TCP connection and may not be a valid socks5 connection. You should call [`IncomingConnection::authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/command/struct.IncomingConnection.html#method.authenticate) to perform a socks5 authentication handshake.
+    ///
+    /// If there is no connection to accept, Poll::Pending is returned and the current task will be notified by a waker. Note that on multiple calls to poll_accept, only the Waker from the Context passed to the most recent call is scheduled to receive a wakeup.
     #[inline]
-    pub fn local_addr(&self) -> Result<SocketAddr> {
+    pub fn poll_accept(
+        &self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(IncomingConnection<O>, SocketAddr), Error>> {
+        self.listener
+            .poll_accept(cx)
+            .map_ok(|(stream, addr)| (IncomingConnection::new(stream, self.auth.clone()), addr))
+    }
+
+    /// Returns the local address that this server is bound to.
+    ///
+    /// This can be useful, for example, when binding to port 0 to figure out which port was actually bound.
+    #[inline]
+    pub fn local_addr(&self) -> Result<SocketAddr, Error> {
         self.listener.local_addr()
+    }
+
+    /// Sets the value for the `IP_TTL` option on this socket.
+    ///
+    /// This value sets the time-to-live field that is used in every packet sent from this socket.
+    #[inline]
+    pub fn set_ttl(&self, ttl: u32) -> Result<(), Error> {
+        self.listener.set_ttl(ttl)
+    }
+
+    /// Gets the value of the `IP_TTL` option for this socket.
+    ///
+    /// For more information about this option, see [set_ttl](https://docs.rs/socks5-server/latest/socks5_server/struct.Server.html#method.set_ttl).
+    #[inline]
+    pub fn ttl(&self) -> Result<u32, Error> {
+        self.listener.ttl()
+    }
+}
+
+impl<O> From<(TcpListener, AuthAdaptor<O>)> for Server<O> {
+    #[inline]
+    fn from((listener, auth): (TcpListener, AuthAdaptor<O>)) -> Self {
+        Self { listener, auth }
+    }
+}
+
+impl<O> From<Server<O>> for (TcpListener, AuthAdaptor<O>) {
+    #[inline]
+    fn from(server: Server<O>) -> Self {
+        (server.listener, server.auth)
     }
 }
