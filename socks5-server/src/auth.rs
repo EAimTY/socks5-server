@@ -1,3 +1,7 @@
+//! This module defines trait [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) and some pre-defined authentication adaptors.
+//!
+//! The process of socks5 authentication can be customized by implementing [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) trait on your own types.
+
 use async_trait::async_trait;
 use socks5_proto::handshake::{
     password::{Error as PasswordError, Request as PasswordRequest, Response as PasswordResponse},
@@ -5,17 +9,15 @@ use socks5_proto::handshake::{
 };
 use tokio::net::TcpStream;
 
-/// This trait is for defining the socks5 authentication method.
+/// This trait is for defining the customized process of socks5 authentication.
 ///
-/// Pre-defined authentication methods can be found in the [`auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/index.html) module.
-///
-/// You can create your own authentication method by implementing this trait. Note that this library will not implicitly close any connection if authentication failed. You should close the connection in `execute()` / on the `TcpStream` attached to the error returned by `Authenticating::auth()`.
+/// You can create your own authentication method by implementing this trait. Associate type `Output` indicates the result of authenticating. Note that this library will not implicitly close any connection even if the authentication failed.
 ///
 /// # Example
 /// ```rust
 /// use async_trait::async_trait;
 /// use std::io::Result;
-/// use socks5_proto::HandshakeMethod;
+/// use socks5_proto::handshake::Method;
 /// use socks5_server::Auth;
 /// use tokio::net::TcpStream;
 ///
@@ -23,15 +25,15 @@ use tokio::net::TcpStream;
 ///
 /// #[async_trait]
 /// impl Auth for MyAuth {
-///     type Output = usize;
+///     type Output = Result<usize>;
 ///
-///     fn as_handshake_method(&self) -> HandshakeMethod {
-///         HandshakeMethod(0x80)
+///     fn as_handshake_method(&self) -> Method {
+///         Method(0xfe)
 ///     }
 ///
-///     async fn execute(&self, stream: &mut TcpStream) -> Result<usize> {
-///         // do something
-///         Ok(123)
+///     async fn execute(&self, stream: &mut TcpStream) -> Self::Output {
+///         // do something on stream
+///         Ok(1145141919810)
 ///     }
 /// }
 /// ```
@@ -43,10 +45,11 @@ pub trait Auth {
     async fn execute(&self, stream: &mut TcpStream) -> Self::Output;
 }
 
-/// No authentication as the socks5 handshake method.
+/// Not authenticate at all.
 pub struct NoAuth;
 
 impl NoAuth {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self
     }
@@ -60,22 +63,19 @@ impl Auth for NoAuth {
         Method::NONE
     }
 
-    async fn execute(&self, _: &mut TcpStream) {}
+    async fn execute(&self, _: &mut TcpStream) -> Self::Output {}
 }
 
-impl Default for NoAuth {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Username and password as the socks5 handshake method.
+/// Using username and password to authenticate.
+///
+/// The boolean value in associate type `Auth::Output` indicates whether the authentication is successful.
 pub struct Password {
-    username: Vec<u8>,
-    password: Vec<u8>,
+    pub username: Vec<u8>,
+    pub password: Vec<u8>,
 }
 
 impl Password {
+    /// Create a new `Password` authentication adaptor.
     pub fn new(username: Vec<u8>, password: Vec<u8>) -> Self {
         Self { username, password }
     }
@@ -89,7 +89,7 @@ impl Auth for Password {
         Method::PASSWORD
     }
 
-    async fn execute(&self, stream: &mut TcpStream) -> Result<bool, PasswordError> {
+    async fn execute(&self, stream: &mut TcpStream) -> Self::Output {
         let req = PasswordRequest::read_from(stream).await?;
 
         if (&req.username, &req.password) == (&self.username, &self.password) {
