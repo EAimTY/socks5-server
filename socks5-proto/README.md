@@ -12,28 +12,33 @@ Check out crate [socks5-server](https://crates.io/crates/socks5-server) for a co
 
 ```rust no_run
 use socks5_proto::{
-    Address, HandshakeMethod, HandshakeRequest, HandshakeResponse, Reply, Request, Response,
+    handshake::{
+        Method as HandshakeMethod, Request as HandshakeRequest, Response as HandshakeResponse,
+    },
+    Address, Error, ProtocolError, Reply, Request, Response,
 };
-use std::io;
 use tokio::{io::AsyncWriteExt, net::TcpListener};
 
 #[tokio::main]
-async fn main() -> io::Result<()> {
+async fn main() -> Result<(), Error> {
     let listener = TcpListener::bind("127.0.0.1:5000").await?;
     let (mut stream, _) = listener.accept().await?;
 
     let hs_req = HandshakeRequest::read_from(&mut stream).await?;
 
-    if hs_req.methods.contains(&HandshakeMethod::None) {
-        let hs_resp = HandshakeResponse::new(HandshakeMethod::None);
+    if hs_req.methods.contains(&HandshakeMethod::NONE) {
+        let hs_resp = HandshakeResponse::new(HandshakeMethod::NONE);
         hs_resp.write_to(&mut stream).await?;
     } else {
-        let hs_resp = HandshakeResponse::new(HandshakeMethod::Unacceptable);
+        let hs_resp = HandshakeResponse::new(HandshakeMethod::UNACCEPTABLE);
         hs_resp.write_to(&mut stream).await?;
         let _ = stream.shutdown().await;
-        return Err(io::Error::new(
-            io::ErrorKind::Unsupported,
-            "No available handshake method provided by client",
+        return Err(Error::Protocol(
+            ProtocolError::NoAcceptableHandshakeMethod {
+                version: socks5_proto::SOCKS_VERSION,
+                chosen_method: HandshakeMethod::NONE,
+                methods: hs_req.methods,
+            },
         ));
     }
 
@@ -48,10 +53,8 @@ async fn main() -> io::Result<()> {
     };
 
     match req.command {
-        _ => {} // process request
+        _ => todo!(), // process request
     }
-
-    Ok(())
 }
 ```
 

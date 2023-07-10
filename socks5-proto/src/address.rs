@@ -8,6 +8,7 @@ use std::{
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
+/// SOCKS5 address
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Address {
     SocketAddress(SocketAddr),

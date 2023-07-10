@@ -1,3 +1,5 @@
+//! This module contains the implementation of SOCKS5 protocol handshake.
+
 mod method;
 mod request;
 mod response;

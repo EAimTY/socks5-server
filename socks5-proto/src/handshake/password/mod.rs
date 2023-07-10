@@ -1,3 +1,5 @@
+//! This module contains the implementation of password authentication method of SOCKS5 protocol handshake.
+
 mod error;
 mod request;
 mod response;

@@ -23,9 +23,9 @@ pub use crate::{
 
 pub(crate) type AuthAdaptor<O> = Arc<dyn Auth<Output = O> + Send + Sync>;
 
-/// A socks5 server listener
+/// A SOCKS5 server listener
 ///
-/// This server listens on a socket and treats incoming connections as socks5 connections.
+/// This server listens on a socket and treats incoming connections as SOCKS5 connections.
 ///
 /// A `(TcpListener, Arc<dyn Auth<Output = O> + Send + Sync>)` can be converted into a `Server<O>` with `From` trait. Also, a `Server<O>` can be converted back.
 ///
@@ -59,7 +59,7 @@ pub struct Server<O> {
 impl<O> Server<O> {
     /// Accept an [`IncomingConnection<O>`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html).
     ///
-    /// The connection is only a freshly created TCP connection and may not be a valid socks5 connection. You should call [`IncomingConnection::authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.authenticate) to perform a socks5 authentication handshake.
+    /// The connection is only a freshly created TCP connection and may not be a valid SOCKS5 connection. You should call [`IncomingConnection::authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.authenticate) to perform a SOCKS5 authentication handshake.
     #[inline]
     pub async fn accept(&self) -> Result<(IncomingConnection<O>, SocketAddr), Error> {
         let (stream, addr) = self.listener.accept().await?;
@@ -68,7 +68,7 @@ impl<O> Server<O> {
 
     /// Polls to accept an [`IncomingConnection<O>`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html).
     ///
-    /// The connection is only a freshly created TCP connection and may not be a valid socks5 connection. You should call [`IncomingConnection::authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.authenticate) to perform a socks5 authentication handshake.
+    /// The connection is only a freshly created TCP connection and may not be a valid SOCKS5 connection. You should call [`IncomingConnection::authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.authenticate) to perform a SOCKS5 authentication handshake.
     ///
     /// If there is no connection to accept, Poll::Pending is returned and the current task will be notified by a waker. Note that on multiple calls to poll_accept, only the Waker from the Context passed to the most recent call is scheduled to receive a wakeup.
     #[inline]

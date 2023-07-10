@@ -17,7 +17,7 @@ use tokio::{
 
 /// Socks5 command type `Bind`
 ///
-/// By [`wait_request()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.wait_request) on an [`Authenticated`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html) from socks5 client, you may get a `Bind<NeedFirstReply>`. After replying the client 2 times using [`reply()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Bind.html#method.reply), you will get a `Bind<Ready>`, which can be used as a regular async TCP stream.
+/// By [`wait_request()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.wait_request) on an [`Authenticated`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html) from SOCKS5 client, you may get a `Bind<NeedFirstReply>`. After replying the client 2 times using [`reply()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Bind.html#method.reply), you will get a `Bind<Ready>`, which can be used as a regular async TCP stream.
 ///
 /// A `Bind<S>` can be converted to a regular tokio [`TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) by using the `From` trait.
 #[derive(Debug)]
@@ -47,7 +47,7 @@ impl Bind<NeedFirstReply> {
         }
     }
 
-    /// Reply to the socks5 client with the given reply and address.
+    /// Reply to the SOCKS5 client with the given reply and address.
     ///
     /// If encountered an error while writing the reply, the error alongside the original `TcpStream` is returned.
     pub async fn reply(
@@ -139,7 +139,7 @@ impl Bind<NeedSecondReply> {
         }
     }
 
-    /// Reply to the socks5 client with the given reply and address.
+    /// Reply to the SOCKS5 client with the given reply and address.
     ///
     /// If encountered an error while writing the reply, the error alongside the original `TcpStream` is returned.
     pub async fn reply(

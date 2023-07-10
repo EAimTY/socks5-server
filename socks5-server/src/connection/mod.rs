@@ -1,6 +1,6 @@
-//! This module contains the connection abstraction of the socks5 protocol.
+//! This module contains the connection abstraction of the SOCKS5 protocol.
 //!
-//! [`accept()`](https://docs.rs/socks5-server/latest/socks5_server/struct.Server.html#method.accept) on a [`Server`](https://docs.rs/socks5-server/latest/socks5_server/struct.Server.html) creates a [`IncomingConnection`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html), which is the entry point of processing a socks5 connection.
+//! [`accept()`](https://docs.rs/socks5-server/latest/socks5_server/struct.Server.html#method.accept) on a [`Server`](https://docs.rs/socks5-server/latest/socks5_server/struct.Server.html) creates a [`IncomingConnection`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html), which is the entry point of processing a SOCKS5 connection.
 
 use self::{associate::Associate, bind::Bind, connect::Connect};
 use crate::AuthAdaptor;
@@ -19,7 +19,7 @@ pub mod connect;
 
 /// A freshly established TCP connection.
 ///
-/// This may not be a valid socks5 connection. You should call [`authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.authenticate) to perform a socks5 authentication handshake.
+/// This may not be a valid SOCKS5 connection. You should call [`authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.authenticate) to perform a SOCKS5 authentication handshake.
 ///
 /// It can also be converted back into a raw tokio [`TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) with `From` trait.
 pub struct IncomingConnection<O> {
@@ -33,7 +33,7 @@ impl<O> IncomingConnection<O> {
         Self { stream, auth }
     }
 
-    /// Perform a socks5 authentication handshake using the given [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) adapter.
+    /// Perform a SOCKS5 authentication handshake using the given [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) adapter.
     ///
     /// If the handshake succeeds, an [`Authenticated`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html) alongs with the output of the [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) adapter is returned. Otherwise, the error and the original [`TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) is returned.
     ///
@@ -148,7 +148,7 @@ impl<O> From<IncomingConnection<O>> for TcpStream {
 
 /// A TCP stream that has been authenticated.
 ///
-/// To get the command from the socks5 client, use [`wait_request`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.wait_request).
+/// To get the command from the SOCKS5 client, use [`wait_request`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.wait_request).
 ///
 /// It can also be converted back into a raw [`tokio::TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) with `From` trait.
 pub struct Authenticated(TcpStream);
@@ -159,7 +159,7 @@ impl Authenticated {
         Self(stream)
     }
 
-    /// Waits the socks5 client to send a request.
+    /// Waits the SOCKS5 client to send a request.
     ///
     /// This method will return a [`Command`](https://docs.rs/socks5-server/latest/socks5_server/connection/enum.Command.html) if the client sends a valid command.
     ///
@@ -261,7 +261,7 @@ impl From<Authenticated> for TcpStream {
     }
 }
 
-/// A command sent from the socks5 client.
+/// A command sent from the SOCKS5 client.
 pub enum Command {
     Associate(Associate<associate::NeedReply>, Address),
     Bind(Bind<bind::NeedFirstReply>, Address),

@@ -1,6 +1,6 @@
 //! This module defines trait [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) and some pre-defined authentication adaptors.
 //!
-//! The process of socks5 authentication can be customized by implementing [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) trait on your own types.
+//! The process of SOCKS5 authentication can be customized by implementing [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) trait on your own types.
 
 use async_trait::async_trait;
 use socks5_proto::handshake::{
@@ -9,7 +9,7 @@ use socks5_proto::handshake::{
 };
 use tokio::net::TcpStream;
 
-/// This trait is for defining the customized process of socks5 authentication.
+/// This trait is for defining the customized process of SOCKS5 authentication.
 ///
 /// You can create your own authentication method by implementing this trait. Associate type `Output` indicates the result of authenticating. Note that this library will not implicitly close any connection even if the authentication failed.
 ///

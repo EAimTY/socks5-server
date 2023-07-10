@@ -17,7 +17,7 @@ use tokio::{
 
 /// Socks5 command type `Connect`
 ///
-/// By [`wait_request()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.wait_request) on an [`Authenticated`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html) from socks5 client, you may get a `Connect<NeedReply>`. After replying the client using [`reply()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Connect.html#method.reply), you will get a `Connect<Ready>`, which can be used as a regular async TCP stream.
+/// By [`wait_request()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.wait_request) on an [`Authenticated`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html) from SOCKS5 client, you may get a `Connect<NeedReply>`. After replying the client using [`reply()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Connect.html#method.reply), you will get a `Connect<Ready>`, which can be used as a regular async TCP stream.
 ///
 /// A `Connect<S>` can be converted to a regular tokio [`TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) by using the `From` trait.
 #[derive(Debug)]
@@ -43,7 +43,7 @@ impl Connect<NeedReply> {
         }
     }
 
-    /// Reply to the socks5 client with the given reply and address.
+    /// Reply to the SOCKS5 client with the given reply and address.
     ///
     /// If encountered an error while writing the reply, the error alongside the original `TcpStream` is returned.
     pub async fn reply(

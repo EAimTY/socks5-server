@@ -3,7 +3,7 @@ use bytes::{BufMut, BytesMut};
 use std::io::Error as IoError;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-/// Response
+/// SOCKS5 response
 ///
 /// ```plain
 /// +-----+-----+-------+------+----------+----------+

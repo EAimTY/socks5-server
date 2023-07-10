@@ -1,6 +1,6 @@
 //! Socks5 command type `Associate`
 //!
-//! This module also provides an [`UdpSocket`](https://docs.rs/tokio/latest/tokio/net/struct.UdpSocket.html) wrapper [`AssociatedUdpSocket`](https://docs.rs/socks5-server/latest/socks5_server/connection/associate/struct.AssociatedUdpSocket.html), which can be used to send and receive UDP packets without dealing with the socks5 protocol UDP header.
+//! This module also provides an [`UdpSocket`](https://docs.rs/tokio/latest/tokio/net/struct.UdpSocket.html) wrapper [`AssociatedUdpSocket`](https://docs.rs/socks5-server/latest/socks5_server/connection/associate/struct.AssociatedUdpSocket.html), which can be used to send and receive UDP packets without dealing with the SOCKS5 protocol UDP header.
 
 use bytes::{Bytes, BytesMut};
 use socks5_proto::{Address, Error as Socks5Error, Reply, Response, UdpHeader};
@@ -25,7 +25,7 @@ use tokio::{
 ///
 /// A `Associate<S>` can be converted to a regular tokio [`TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) by using the `From` trait.
 ///
-/// This module also provides an [`UdpSocket`](https://docs.rs/tokio/latest/tokio/net/struct.UdpSocket.html) wrapper [`AssociatedUdpSocket`](https://docs.rs/socks5-server/latest/socks5_server/connection/associate/struct.AssociatedUdpSocket.html), which can be used to send and receive UDP packets without dealing with the socks5 protocol UDP header.
+/// This module also provides an [`UdpSocket`](https://docs.rs/tokio/latest/tokio/net/struct.UdpSocket.html) wrapper [`AssociatedUdpSocket`](https://docs.rs/socks5-server/latest/socks5_server/connection/associate/struct.AssociatedUdpSocket.html), which can be used to send and receive UDP packets without dealing with the SOCKS5 protocol UDP header.
 #[derive(Debug)]
 pub struct Associate<S> {
     stream: TcpStream,
@@ -49,7 +49,7 @@ impl Associate<NeedReply> {
         }
     }
 
-    /// Reply to the socks5 client with the given reply and address.
+    /// Reply to the SOCKS5 client with the given reply and address.
     ///
     /// If encountered an error while writing the reply, the error alongside the original `TcpStream` is returned.
     pub async fn reply(
@@ -141,7 +141,7 @@ impl Associate<Ready> {
         }
     }
 
-    /// Wait until the socks5 client closes this TCP connection.
+    /// Wait until the SOCKS5 client closes this TCP connection.
     ///
     /// Socks5 protocol defines that when the client closes the TCP connection used to send the associate command, the server should release the associated UDP socket.
     pub async fn wait_until_closed(&mut self) -> Result<(), Error> {
@@ -210,11 +210,11 @@ impl<S> From<Associate<S>> for TcpStream {
     }
 }
 
-/// A wrapper of a tokio UDP socket dealing with socks5 UDP header.
+/// A wrapper of a tokio UDP socket dealing with SOCKS5 UDP header.
 ///
-/// `(UdpSocket, usize)` and `AssociatedUdpSocket` can be converted to each other with `From` trait, in which `usize` is the maximum receiving UDP packet size, with socks5 UDP header included.
+/// `(UdpSocket, usize)` and `AssociatedUdpSocket` can be converted to each other with `From` trait, in which `usize` is the maximum receiving UDP packet size, with SOCKS5 UDP header included.
 ///
-/// It only provides handful of methods to send / receive UDP packets with socks5 UDP header. However, the underlying `UdpSocket` can be accessed with `AsRef` and `AsMut` trait, so you can use all methods provided by `UdpSocket`.
+/// It only provides handful of methods to send / receive UDP packets with SOCKS5 UDP header. However, the underlying `UdpSocket` can be accessed with `AsRef` and `AsMut` trait, so you can use all methods provided by `UdpSocket`.
 #[derive(Debug)]
 pub struct AssociatedUdpSocket {
     socket: UdpSocket,
@@ -222,21 +222,21 @@ pub struct AssociatedUdpSocket {
 }
 
 impl AssociatedUdpSocket {
-    /// Get the maximum receiving UDP packet size, with socks5 UDP header included.
+    /// Get the maximum receiving UDP packet size, with SOCKS5 UDP header included.
     #[inline]
     pub fn get_max_pkt_size(&self) -> usize {
         self.buf_size.load(Ordering::Relaxed)
     }
 
-    /// Set the maximum receiving UDP packet size, with socks5 UDP header included, for adjusting the receiving buffer size.
+    /// Set the maximum receiving UDP packet size, with SOCKS5 UDP header included, for adjusting the receiving buffer size.
     #[inline]
     pub fn set_max_pkt_size(&self, size: usize) {
         self.buf_size.store(size, Ordering::Release);
     }
 
-    /// Receives a socks5 UDP packet on the socket from the remote address which it is connected.
+    /// Receives a SOCKS5 UDP packet on the socket from the remote address which it is connected.
     ///
-    /// On success, it returns the packet payload and the socks5 UDP header. On error, it returns the error alongside an `Option<Vec<u8>>`. If the error occurs before / when receiving the raw UDP packet, the `Option<Vec<u8>>` will be `None`. Otherwise, it will be `Some(Vec<u8>)` containing the received raw UDP packet.
+    /// On success, it returns the packet payload and the SOCKS5 UDP header. On error, it returns the error alongside an `Option<Vec<u8>>`. If the error occurs before / when receiving the raw UDP packet, the `Option<Vec<u8>>` will be `None`. Otherwise, it will be `Some(Vec<u8>)` containing the received raw UDP packet.
     pub async fn recv(&self) -> Result<(Bytes, UdpHeader), (Socks5Error, Option<Vec<u8>>)> {
         let max_pkt_size = self.buf_size.load(Ordering::Acquire);
         let mut buf = vec![0; max_pkt_size];
@@ -258,9 +258,9 @@ impl AssociatedUdpSocket {
         Ok((pkt, header))
     }
 
-    /// Receives a socks5 UDP packet on the socket from a remote address.
+    /// Receives a SOCKS5 UDP packet on the socket from a remote address.
     ///
-    /// On success, it returns the packet payload, the socks5 UDP header and the source address. On error, it returns the error alongside an `Option<Vec<u8>>`. If the error occurs before / when receiving the raw UDP packet, the `Option<Vec<u8>>` will be `None`. Otherwise, it will be `Some(Vec<u8>)` containing the received raw UDP packet.
+    /// On success, it returns the packet payload, the SOCKS5 UDP header and the source address. On error, it returns the error alongside an `Option<Vec<u8>>`. If the error occurs before / when receiving the raw UDP packet, the `Option<Vec<u8>>` will be `None`. Otherwise, it will be `Some(Vec<u8>)` containing the received raw UDP packet.
     pub async fn recv_from(
         &self,
     ) -> Result<(Bytes, UdpHeader, SocketAddr), (Socks5Error, Option<Vec<u8>>)> {
@@ -284,7 +284,7 @@ impl AssociatedUdpSocket {
         Ok((pkt, header, addr))
     }
 
-    /// Sends a UDP packet to the remote address which it is connected. The socks5 UDP header will be added to the packet.
+    /// Sends a UDP packet to the remote address which it is connected. The SOCKS5 UDP header will be added to the packet.
     pub async fn send<P: AsRef<[u8]>>(&self, pkt: P, header: &UdpHeader) -> Result<usize, Error> {
         let mut buf = BytesMut::with_capacity(header.serialized_len() + pkt.as_ref().len());
         header.write_to_buf(&mut buf);
@@ -296,7 +296,7 @@ impl AssociatedUdpSocket {
             .map(|len| len - header.serialized_len())
     }
 
-    /// Sends a UDP packet to a specified remote address. The socks5 UDP header will be added to the packet.
+    /// Sends a UDP packet to a specified remote address. The SOCKS5 UDP header will be added to the packet.
     pub async fn send_to<P: AsRef<[u8]>>(
         &self,
         pkt: P,

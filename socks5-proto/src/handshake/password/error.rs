@@ -1,6 +1,7 @@
 use std::io::{Error as IoError, ErrorKind};
 use thiserror::Error;
 
+/// Errors may occured during SOCKS5 password authentication
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]

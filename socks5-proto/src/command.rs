@@ -1,3 +1,4 @@
+/// SOCKS5 command
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Command {
     Connect,
