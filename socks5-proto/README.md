@@ -6,7 +6,7 @@ This crate provides fundamental abstractions and async read / write functions fo
 [![Documentation](https://img.shields.io/badge/docs-release-brightgreen.svg?style=flat)](https://docs.rs/socks5-proto)
 [![License](https://img.shields.io/crates/l/socks5-proto.svg?style=flat)](https://github.com/EAimTY/socks5-server/blob/master/LICENSE)
 
-Check out crate [socks5-server](https://crates.io/crates/socks5-server) for a complete SOCKS5 server implementation.
+Check out [socks5-server](https://crates.io/crates/socks5-server) for a fine-grained relatively low-level asynchronized SOCKS5 server library.
 
 ## Example
 
