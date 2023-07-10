@@ -36,6 +36,8 @@ impl<O> IncomingConnection<O> {
     /// Perform a socks5 authentication handshake using the given [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) adapter.
     ///
     /// If the handshake succeeds, an [`Authenticated`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html) alongs with the output of the [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) adapter is returned. Otherwise, the error and the original [`TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) is returned.
+    ///
+    /// Note that this method will not implicitly close the connection even if the handshake failed.
     pub async fn authenticate(mut self) -> Result<(Authenticated, O), (TcpStream, Error)> {
         let req = match HandshakeRequest::read_from(&mut self.stream).await {
             Ok(req) => req,
@@ -145,11 +147,13 @@ impl Authenticated {
         Self(stream)
     }
 
-    /// Waits the socks5 client to send a command.
+    /// Waits the socks5 client to send a request.
     ///
     /// This method will return a [`Command`](https://docs.rs/socks5-server/latest/socks5_server/connection/enum.Command.html) if the client sends a valid command.
     ///
     /// When encountering an error, the stream will be returned alongside the error.
+    ///
+    /// Note that this method will not implicitly close the connection even if the client sends an invalid request.
     pub async fn wait_request(mut self) -> Result<Command, (TcpStream, Error)> {
         let req = match Request::read_from(&mut self.0).await {
             Ok(req) => req,

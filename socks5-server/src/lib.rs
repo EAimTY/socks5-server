@@ -29,7 +29,7 @@ pub(crate) type AuthAdaptor<O> = Arc<dyn Auth<Output = O> + Send + Sync>;
 ///
 /// A `(TcpListener, Arc<dyn Auth<Output = O> + Send + Sync>)` can be converted into a `Server<O>` with `From` trait. Also, a `Server<O>` can be converted back.
 ///
-/// Generic type `<O>` is the output type of the authentication adapter. See module [`auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/index.html).
+/// Generic type `<O>` is the output type of the authentication adapter. See trait [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html).
 ///
 /// # Example
 ///
