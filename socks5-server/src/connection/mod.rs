@@ -38,10 +38,10 @@ impl<O> IncomingConnection<O> {
     /// If the handshake succeeds, an [`Authenticated`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html) alongs with the output of the [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) adapter is returned. Otherwise, the error and the original [`TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) is returned.
     ///
     /// Note that this method will not implicitly close the connection even if the handshake failed.
-    pub async fn authenticate(mut self) -> Result<(Authenticated, O), (TcpStream, Error)> {
+    pub async fn authenticate(mut self) -> Result<(Authenticated, O), (Error, TcpStream)> {
         let req = match HandshakeRequest::read_from(&mut self.stream).await {
             Ok(req) => req,
-            Err(err) => return Err((self.stream, err)),
+            Err(err) => return Err((err, self.stream)),
         };
         let chosen_method = self.auth.as_handshake_method();
 
@@ -49,7 +49,7 @@ impl<O> IncomingConnection<O> {
             let resp = HandshakeResponse::new(chosen_method);
 
             if let Err(err) = resp.write_to(&mut self.stream).await {
-                return Err((self.stream, Error::Io(err)));
+                return Err((Error::Io(err), self.stream));
             }
 
             let output = self.auth.execute(&mut self.stream).await;
@@ -59,16 +59,16 @@ impl<O> IncomingConnection<O> {
             let resp = HandshakeResponse::new(HandshakeMethod::UNACCEPTABLE);
 
             if let Err(err) = resp.write_to(&mut self.stream).await {
-                return Err((self.stream, Error::Io(err)));
+                return Err((Error::Io(err), self.stream));
             }
 
             Err((
-                self.stream,
                 Error::Protocol(ProtocolError::NoAcceptableHandshakeMethod {
                     version: socks5_proto::SOCKS_VERSION,
                     chosen_method,
                     methods: req.methods,
                 }),
+                self.stream,
             ))
         }
     }
@@ -166,10 +166,10 @@ impl Authenticated {
     /// When encountering an error, the stream will be returned alongside the error.
     ///
     /// Note that this method will not implicitly close the connection even if the client sends an invalid request.
-    pub async fn wait_request(mut self) -> Result<Command, (TcpStream, Error)> {
+    pub async fn wait_request(mut self) -> Result<Command, (Error, TcpStream)> {
         let req = match Request::read_from(&mut self.0).await {
             Ok(req) => req,
-            Err(err) => return Err((self.0, err)),
+            Err(err) => return Err((err, self.0)),
         };
 
         match req.command {

@@ -28,7 +28,7 @@ async fn main() -> Result<(), IoError> {
 async fn handle(conn: IncomingConnection<()>) -> Result<(), Error> {
     let conn = match conn.authenticate().await {
         Ok((conn, _)) => conn,
-        Err((mut conn, err)) => {
+        Err((err, mut conn)) => {
             let _ = conn.shutdown().await;
             return Err(err);
         }
@@ -36,39 +36,79 @@ async fn handle(conn: IncomingConnection<()>) -> Result<(), Error> {
 
     match conn.wait_request().await {
         Ok(Command::Associate(associate, _)) => {
-            let mut conn = associate
+            let replied = associate
                 .reply(Reply::CommandNotSupported, Address::unspecified())
-                .await?;
+                .await;
+
+            let mut conn = match replied {
+                Ok(conn) => conn,
+                Err((err, mut conn)) => {
+                    let _ = conn.shutdown().await;
+                    return Err(Error::Io(err));
+                }
+            };
+
             let _ = conn.shutdown().await;
         }
         Ok(Command::Bind(bind, _)) => {
-            let mut conn = bind
+            let replied = bind
                 .reply(Reply::CommandNotSupported, Address::unspecified())
-                .await?;
+                .await;
+
+            let mut conn = match replied {
+                Ok(conn) => conn,
+                Err((err, mut conn)) => {
+                    let _ = conn.shutdown().await;
+                    return Err(Error::Io(err));
+                }
+            };
+
             let _ = conn.shutdown().await;
         }
         Ok(Command::Connect(connect, addr)) => {
             let target = match addr {
                 Address::DomainAddress(domain, port) => {
-                    let domain = String::from_utf8(domain).unwrap();
-                    TcpStream::connect((domain, port)).await
+                    let domain = String::from_utf8_lossy(&domain);
+                    TcpStream::connect((domain.as_ref(), port)).await
                 }
                 Address::SocketAddress(addr) => TcpStream::connect(addr).await,
             };
 
             if let Ok(mut target) = target {
-                let mut conn = connect
+                let replied = connect
                     .reply(Reply::Succeeded, Address::unspecified())
-                    .await?;
-                io::copy_bidirectional(&mut target, &mut conn).await?;
+                    .await;
+
+                let mut conn = match replied {
+                    Ok(conn) => conn,
+                    Err((err, mut conn)) => {
+                        let _ = conn.shutdown().await;
+                        return Err(Error::Io(err));
+                    }
+                };
+
+                let res = io::copy_bidirectional(&mut target, &mut conn).await;
+                let _ = conn.shutdown().await;
+                let _ = target.shutdown().await;
+
+                res?;
             } else {
-                let mut conn = connect
+                let replied = connect
                     .reply(Reply::HostUnreachable, Address::unspecified())
-                    .await?;
+                    .await;
+
+                let mut conn = match replied {
+                    Ok(conn) => conn,
+                    Err((err, mut conn)) => {
+                        let _ = conn.shutdown().await;
+                        return Err(Error::Io(err));
+                    }
+                };
+
                 let _ = conn.shutdown().await;
             }
         }
-        Err((mut conn, err)) => {
+        Err((err, mut conn)) => {
             let _ = conn.shutdown().await;
             return Err(err);
         }

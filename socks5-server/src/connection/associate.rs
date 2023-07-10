@@ -50,9 +50,19 @@ impl Associate<NeedReply> {
     }
 
     /// Reply to the socks5 client with the given reply and address.
-    pub async fn reply(mut self, reply: Reply, addr: Address) -> Result<Associate<Ready>, Error> {
+    ///
+    /// If encountered an error while writing the reply, the error alongside the original `TcpStream` is returned.
+    pub async fn reply(
+        mut self,
+        reply: Reply,
+        addr: Address,
+    ) -> Result<Associate<Ready>, (Error, TcpStream)> {
         let resp = Response::new(reply, addr);
-        resp.write_to(&mut self.stream).await?;
+
+        if let Err(err) = resp.write_to(&mut self.stream).await {
+            return Err((err, self.stream));
+        }
+
         Ok(Associate::<Ready>::new(self.stream))
     }
 
@@ -227,20 +237,20 @@ impl AssociatedUdpSocket {
     /// Receives a socks5 UDP packet on the socket from the remote address which it is connected.
     ///
     /// On success, it returns the packet payload and the socks5 UDP header. On error, it returns the error alongside an `Option<Vec<u8>>`. If the error occurs before / when receiving the raw UDP packet, the `Option<Vec<u8>>` will be `None`. Otherwise, it will be `Some(Vec<u8>)` containing the received raw UDP packet.
-    pub async fn recv(&self) -> Result<(Bytes, UdpHeader), (Option<Vec<u8>>, Socks5Error)> {
+    pub async fn recv(&self) -> Result<(Bytes, UdpHeader), (Socks5Error, Option<Vec<u8>>)> {
         let max_pkt_size = self.buf_size.load(Ordering::Acquire);
         let mut buf = vec![0; max_pkt_size];
 
         let len = match self.socket.recv(&mut buf).await {
             Ok(len) => len,
-            Err(err) => return Err((None, Socks5Error::Io(err))),
+            Err(err) => return Err((Socks5Error::Io(err), None)),
         };
 
         buf.truncate(len);
 
         let header = match UdpHeader::read_from(&mut Cursor::new(buf.as_slice())).await {
             Ok(header) => header,
-            Err(err) => return Err((Some(buf), err)),
+            Err(err) => return Err((err, Some(buf))),
         };
 
         let pkt = Bytes::from(buf).slice(header.serialized_len()..);
@@ -253,20 +263,20 @@ impl AssociatedUdpSocket {
     /// On success, it returns the packet payload, the socks5 UDP header and the source address. On error, it returns the error alongside an `Option<Vec<u8>>`. If the error occurs before / when receiving the raw UDP packet, the `Option<Vec<u8>>` will be `None`. Otherwise, it will be `Some(Vec<u8>)` containing the received raw UDP packet.
     pub async fn recv_from(
         &self,
-    ) -> Result<(Bytes, UdpHeader, SocketAddr), (Option<Vec<u8>>, Socks5Error)> {
+    ) -> Result<(Bytes, UdpHeader, SocketAddr), (Socks5Error, Option<Vec<u8>>)> {
         let max_pkt_size = self.buf_size.load(Ordering::Acquire);
         let mut buf = vec![0; max_pkt_size];
 
         let (len, addr) = match self.socket.recv_from(&mut buf).await {
             Ok(res) => res,
-            Err(err) => return Err((None, Socks5Error::Io(err))),
+            Err(err) => return Err((Socks5Error::Io(err), None)),
         };
 
         buf.truncate(len);
 
         let header = match UdpHeader::read_from(&mut Cursor::new(buf.as_slice())).await {
             Ok(header) => header,
-            Err(err) => return Err((Some(buf), err)),
+            Err(err) => return Err((err, Some(buf))),
         };
 
         let pkt = Bytes::from(buf).slice(header.serialized_len()..);

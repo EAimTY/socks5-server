@@ -44,9 +44,19 @@ impl Connect<NeedReply> {
     }
 
     /// Reply to the socks5 client with the given reply and address.
-    pub async fn reply(mut self, reply: Reply, addr: Address) -> Result<Connect<Ready>, Error> {
+    ///
+    /// If encountered an error while writing the reply, the error alongside the original `TcpStream` is returned.
+    pub async fn reply(
+        mut self,
+        reply: Reply,
+        addr: Address,
+    ) -> Result<Connect<Ready>, (Error, TcpStream)> {
         let resp = Response::new(reply, addr);
-        resp.write_to(&mut self.stream).await?;
+
+        if let Err(err) = resp.write_to(&mut self.stream).await {
+            return Err((err, self.stream));
+        }
+
         Ok(Connect::<Ready>::new(self.stream))
     }
 
