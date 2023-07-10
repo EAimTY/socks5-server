@@ -11,7 +11,7 @@ use socks5_proto::{
     Address, Command as ProtocolCommand, Error, ProtocolError, Request,
 };
 use std::{io::Error as IoError, net::SocketAddr, time::Duration};
-use tokio::net::TcpStream;
+use tokio::{io::AsyncWriteExt, net::TcpStream};
 
 pub mod associate;
 pub mod bind;
@@ -21,7 +21,7 @@ pub mod connect;
 ///
 /// This may not be a valid socks5 connection. You should call [`authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.authenticate) to perform a socks5 authentication handshake.
 ///
-/// It can also be converted back into a raw [`tokio::TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) with `From` trait.
+/// It can also be converted back into a raw tokio [`TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) with `From` trait.
 pub struct IncomingConnection<O> {
     stream: TcpStream,
     auth: AuthAdaptor<O>,
@@ -73,10 +73,22 @@ impl<O> IncomingConnection<O> {
         }
     }
 
+    /// Causes the other peer to receive a read of length 0, indicating that no more data will be sent. This only closes the stream in one direction.
+    #[inline]
+    pub async fn shutdown(&mut self) -> Result<(), IoError> {
+        self.stream.shutdown().await
+    }
+
     /// Returns the local address that this stream is bound to.
     #[inline]
     pub fn local_addr(&self) -> Result<SocketAddr, IoError> {
         self.stream.local_addr()
+    }
+
+    /// Returns the remote address that this stream is connected to.
+    #[inline]
+    pub fn peer_addr(&self) -> Result<SocketAddr, IoError> {
+        self.stream.peer_addr()
     }
 
     /// Reads the linger duration for this socket by getting the `SO_LINGER` option.
@@ -176,15 +188,27 @@ impl Authenticated {
         }
     }
 
+    /// Causes the other peer to receive a read of length 0, indicating that no more data will be sent. This only closes the stream in one direction.
+    #[inline]
+    pub async fn shutdown(&mut self) -> Result<(), IoError> {
+        self.0.shutdown().await
+    }
+
     /// Returns the local address that this stream is bound to.
     #[inline]
     pub fn local_addr(&self) -> Result<SocketAddr, IoError> {
         self.0.local_addr()
     }
 
+    /// Returns the remote address that this stream is connected to.
+    #[inline]
+    pub fn peer_addr(&self) -> Result<SocketAddr, IoError> {
+        self.0.peer_addr()
+    }
+
     /// Reads the linger duration for this socket by getting the `SO_LINGER` option.
     ///
-    /// For more information about this option, see [set_linger](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.set_linger).
+    /// For more information about this option, see [set_linger](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.set_linger).
     #[inline]
     pub fn linger(&self) -> Result<Option<Duration>, IoError> {
         self.0.linger()
@@ -202,7 +226,7 @@ impl Authenticated {
 
     /// Gets the value of the `TCP_NODELAY` option on this socket.
     ///
-    /// For more information about this option, see [set_nodelay](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.set_nodelay).
+    /// For more information about this option, see [set_nodelay](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.set_nodelay).
     #[inline]
     pub fn nodelay(&self) -> Result<bool, IoError> {
         self.0.nodelay()
@@ -217,7 +241,7 @@ impl Authenticated {
 
     /// Gets the value of the `IP_TTL` option for this socket.
     ///
-    /// For more information about this option, see [set_ttl](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.set_ttl).
+    /// For more information about this option, see [set_ttl](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.set_ttl).
     pub fn ttl(&self) -> Result<u32, IoError> {
         self.0.ttl()
     }
