@@ -1,4 +1,6 @@
 [workspace]
+resolver = "2"
+
 members = [
     "socks5-proto",
     "socks5-server",
