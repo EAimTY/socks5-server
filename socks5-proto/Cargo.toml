@@ -12,5 +12,5 @@ repository = "https://github.com/EAimTY/socks5-server"
 
 [dependencies]
 bytes = { version = "1.4.0", default-features = false, features = ["std"] }
-tokio = { version = "1.29.1", default-features = false, features = ["io-util"] }
-thiserror = { version = "1.0.43", default-features = false }
+tokio = { version = "1.32.0", default-features = false, features = ["io-util"] }
+thiserror = { version = "1.0.47", default-features = false }
