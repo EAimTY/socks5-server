@@ -17,17 +17,25 @@ pub use crate::{
         associate::{Associate, AssociatedUdpSocket},
         bind::Bind,
         connect::Connect,
-        Authenticated, Command, IncomingConnection,
+        Command, IncomingConnection,
     },
 };
 
-pub(crate) type AuthAdaptor<O> = Arc<dyn Auth<Output = O> + Send + Sync>;
+pub(crate) type AuthAdaptor<A> = Arc<dyn Auth<Output = A> + Send + Sync>;
+
+type ServerAcceptResult<A> = Result<
+    (
+        IncomingConnection<A, connection::state::NeedAuthenticate>,
+        SocketAddr,
+    ),
+    Error,
+>;
 
 /// A SOCKS5 server listener
 ///
 /// This server listens on a socket and treats incoming connections as SOCKS5 connections.
 ///
-/// Generic `<O>` is the output type of the authentication adapter. See trait [`Auth`].
+/// Generic `<A>` is the output type of the authentication adapter. See trait [`Auth`].
 ///
 /// # Example
 ///
@@ -49,15 +57,15 @@ pub(crate) type AuthAdaptor<O> = Arc<dyn Auth<Output = O> + Send + Sync>;
 ///     }
 /// }
 /// ```
-pub struct Server<O> {
+pub struct Server<A> {
     listener: TcpListener,
-    auth: AuthAdaptor<O>,
+    auth: AuthAdaptor<A>,
 }
 
-impl<O> Server<O> {
-    /// Creates a new [`Server<O>`] with a [`tokio::net::TcpListener`] and an `Arc<dyn Auth<Output = O> + Send + Sync>`.
+impl<A> Server<A> {
+    /// Creates a new [`Server<A>`] with a [`TcpListener`](tokio::net::TcpListener) and an `Arc<dyn Auth<Output = A> + Send + Sync>`.
     #[inline]
-    pub fn new(listener: TcpListener, auth: AuthAdaptor<O>) -> Self {
+    pub fn new(listener: TcpListener, auth: AuthAdaptor<A>) -> Self {
         Self { listener, auth }
     }
 
@@ -65,7 +73,7 @@ impl<O> Server<O> {
     ///
     /// The connection is only a freshly created TCP connection and may not be a valid SOCKS5 connection. You should call [`IncomingConnection::authenticate()`] to perform a SOCKS5 authentication handshake.
     #[inline]
-    pub async fn accept(&self) -> Result<(IncomingConnection<O>, SocketAddr), Error> {
+    pub async fn accept(&self) -> ServerAcceptResult<A> {
         let (stream, addr) = self.listener.accept().await?;
         Ok((IncomingConnection::new(stream, self.auth.clone()), addr))
     }
@@ -76,10 +84,7 @@ impl<O> Server<O> {
     ///
     /// If there is no connection to accept, Poll::Pending is returned and the current task will be notified by a waker. Note that on multiple calls to poll_accept, only the Waker from the Context passed to the most recent call is scheduled to receive a wakeup.
     #[inline]
-    pub fn poll_accept(
-        &self,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(IncomingConnection<O>, SocketAddr), Error>> {
+    pub fn poll_accept(&self, cx: &mut Context<'_>) -> Poll<ServerAcceptResult<A>> {
         self.listener
             .poll_accept(cx)
             .map_ok(|(stream, addr)| (IncomingConnection::new(stream, self.auth.clone()), addr))
@@ -109,9 +114,9 @@ impl<O> Server<O> {
         &mut self.listener
     }
 
-    /// Consumes the [`Server<O>`] and returns the underlying [`tokio::net::TcpListener`] and `Arc<dyn Auth<Output = O> + Send + Sync>`.
+    /// Consumes the [`Server<A>`] and returns the underlying [`TcpListener`](tokio::net::TcpListener) and `Arc<dyn Auth<Output = A> + Send + Sync>`.
     #[inline]
-    pub fn into_inner(self) -> (TcpListener, AuthAdaptor<O>) {
+    pub fn into_inner(self) -> (TcpListener, AuthAdaptor<A>) {
         (self.listener, self.auth)
     }
 }
