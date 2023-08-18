@@ -127,6 +127,14 @@ pub struct AssociatedUdpSocket {
 }
 
 impl AssociatedUdpSocket {
+    /// Creates a new [`AssociatedUdpSocket`] with a [`UdpSocket`](tokio::net::UdpSocket) and a maximum receiving UDP packet size, with SOCKS5 UDP header included.
+    pub fn new(socket: UdpSocket, buf_size: usize) -> Self {
+        Self {
+            socket,
+            buf_size: AtomicUsize::new(buf_size),
+        }
+    }
+
     /// Receives a SOCKS5 UDP packet on the socket from the remote address which it is connected.
     ///
     /// On success, it returns the packet payload and the SOCKS5 UDP header. On error, it returns the error alongside an `Option<Vec<u8>>`. If the error occurs before / when receiving the raw UDP packet, the `Option<Vec<u8>>` will be `None`. Otherwise, it will be `Some(Vec<u8>)` containing the received raw UDP packet.
