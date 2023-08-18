@@ -46,6 +46,7 @@ pub trait Auth {
 }
 
 /// Not authenticate at all.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct NoAuth;
 
 impl NoAuth {
@@ -69,6 +70,7 @@ impl Auth for NoAuth {
 /// Using username and password to authenticate.
 ///
 /// The boolean value in associate type `Auth::Output` indicates whether the authentication is successful.
+#[derive(Clone, Debug)]
 pub struct Password {
     pub username: Vec<u8>,
     pub password: Vec<u8>,

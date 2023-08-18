@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 use std::{
+    fmt::Debug,
     io::Error,
     net::SocketAddr,
     sync::Arc,
@@ -118,5 +119,14 @@ impl<A> Server<A> {
     #[inline]
     pub fn into_inner(self) -> (TcpListener, AuthAdaptor<A>) {
         (self.listener, self.auth)
+    }
+}
+
+impl<A> Debug for Server<A> {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Server")
+            .field("listener", &self.listener)
+            .finish()
     }
 }

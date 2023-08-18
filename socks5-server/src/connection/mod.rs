@@ -8,7 +8,7 @@ use socks5_proto::{
     },
     Address, Command as ProtocolCommand, Error, ProtocolError, Request,
 };
-use std::{io::Error as IoError, marker::PhantomData, net::SocketAddr};
+use std::{fmt::Debug, io::Error as IoError, marker::PhantomData, net::SocketAddr};
 use tokio::{io::AsyncWriteExt, net::TcpStream};
 
 pub mod associate;
@@ -17,7 +17,10 @@ pub mod connect;
 
 /// Incoming connection state types
 pub mod state {
+    #[derive(Debug)]
     pub struct NeedAuthenticate;
+
+    #[derive(Debug)]
     pub struct NeedCommand;
 }
 
@@ -151,7 +154,16 @@ impl<A, S> IncomingConnection<A, S> {
     }
 }
 
+impl<A, S> Debug for IncomingConnection<A, S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IncomingConnection")
+            .field("stream", &self.stream)
+            .finish()
+    }
+}
+
 /// A command sent from the SOCKS5 client.
+#[derive(Debug)]
 pub enum Command {
     Associate(Associate<associate::state::NeedReply>, Address),
     Bind(Bind<bind::state::NeedFirstReply>, Address),
