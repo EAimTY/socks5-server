@@ -89,18 +89,13 @@ impl<A> IncomingConnection<A, state::NeedCommand> {
         };
 
         match req.command {
-            ProtocolCommand::Associate => Ok(Command::Associate(
-                Associate::<associate::NeedReply>::new(self.stream),
-                req.address,
-            )),
-            ProtocolCommand::Bind => Ok(Command::Bind(
-                Bind::<bind::NeedFirstReply>::new(self.stream),
-                req.address,
-            )),
-            ProtocolCommand::Connect => Ok(Command::Connect(
-                Connect::<connect::NeedReply>::new(self.stream),
-                req.address,
-            )),
+            ProtocolCommand::Associate => {
+                Ok(Command::Associate(Associate::new(self.stream), req.address))
+            }
+            ProtocolCommand::Bind => Ok(Command::Bind(Bind::new(self.stream), req.address)),
+            ProtocolCommand::Connect => {
+                Ok(Command::Connect(Connect::new(self.stream), req.address))
+            }
         }
     }
 }
@@ -158,7 +153,7 @@ impl<A, S> IncomingConnection<A, S> {
 
 /// A command sent from the SOCKS5 client.
 pub enum Command {
-    Associate(Associate<associate::NeedReply>, Address),
-    Bind(Bind<bind::NeedFirstReply>, Address),
-    Connect(Connect<connect::NeedReply>, Address),
+    Associate(Associate<associate::state::NeedReply>, Address),
+    Bind(Bind<bind::state::NeedFirstReply>, Address),
+    Connect(Connect<connect::state::NeedReply>, Address),
 }

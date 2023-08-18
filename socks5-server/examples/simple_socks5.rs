@@ -50,7 +50,7 @@ async fn handle(conn: IncomingConnection<(), NeedAuthenticate>) -> Result<(), Er
                 }
             };
 
-            let _ = conn.shutdown().await;
+            let _ = conn.close().await;
         }
         Ok(Command::Bind(bind, _)) => {
             let replied = bind
@@ -65,7 +65,7 @@ async fn handle(conn: IncomingConnection<(), NeedAuthenticate>) -> Result<(), Er
                 }
             };
 
-            let _ = conn.shutdown().await;
+            let _ = conn.close().await;
         }
         Ok(Command::Connect(connect, addr)) => {
             let target = match addr {

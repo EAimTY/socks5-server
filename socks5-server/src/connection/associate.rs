@@ -1,6 +1,6 @@
 //! Socks5 command type `Associate`
 //!
-//! This module also provides an [`UdpSocket`](https://docs.rs/tokio/latest/tokio/net/struct.UdpSocket.html) wrapper [`AssociatedUdpSocket`](https://docs.rs/socks5-server/latest/socks5_server/connection/associate/struct.AssociatedUdpSocket.html), which can be used to send and receive UDP packets without dealing with the SOCKS5 protocol UDP header.
+//! This module also provides an [`tokio::net::UdpSocket`] wrapper [`AssociatedUdpSocket`], which can be used to send and receive UDP packets without dealing with the SOCKS5 protocol UDP header.
 
 use bytes::{Bytes, BytesMut};
 use socks5_proto::{Address, Error as Socks5Error, Reply, Response, UdpHeader};
@@ -8,39 +8,66 @@ use std::{
     io::{Cursor, Error},
     marker::PhantomData,
     net::SocketAddr,
-    ops::{Deref, DerefMut},
-    pin::Pin,
     sync::atomic::{AtomicUsize, Ordering},
-    task::{Context, Poll},
-    time::Duration,
 };
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
+    io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpStream, UdpSocket},
 };
 
+/// Connection state types
+pub mod state {
+    #[derive(Debug)]
+    pub struct NeedReply;
+
+    #[derive(Debug)]
+    pub struct Ready;
+}
+
 /// Socks5 command type `Associate`
 ///
-/// By [`wait_request()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.wait_request) on an [`Authenticated`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html) from socks5 client, you may get a `Associate<NeedReply>`. After replying the client using [`reply()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Associate.html#method.reply), you will get a `Associate<Ready>`, which can be used as a regular async TCP stream.
-///
-/// A `Associate<S>` can be converted to a regular tokio [`TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) by using the `From` trait.
-///
-/// This module also provides an [`UdpSocket`](https://docs.rs/tokio/latest/tokio/net/struct.UdpSocket.html) wrapper [`AssociatedUdpSocket`](https://docs.rs/socks5-server/latest/socks5_server/connection/associate/struct.AssociatedUdpSocket.html), which can be used to send and receive UDP packets without dealing with the SOCKS5 protocol UDP header.
+/// Reply the client with [`Associate::reply()`] to complete the command negotiation.
 #[derive(Debug)]
 pub struct Associate<S> {
     stream: TcpStream,
     _state: PhantomData<S>,
 }
 
-/// Marker type indicating that the connection needs to be replied.
-#[derive(Debug)]
-pub struct NeedReply;
+impl Associate<state::NeedReply> {
+    /// Reply to the SOCKS5 client with the given reply and address.
+    ///
+    /// If encountered an error while writing the reply, the error alongside the original `TcpStream` is returned.
+    pub async fn reply(
+        mut self,
+        reply: Reply,
+        addr: Address,
+    ) -> Result<Associate<state::Ready>, (Error, TcpStream)> {
+        let resp = Response::new(reply, addr);
 
-/// Marker type indicating that the connection is ready to use as a regular TCP stream.
-#[derive(Debug)]
-pub struct Ready;
+        if let Err(err) = resp.write_to(&mut self.stream).await {
+            return Err((err, self.stream));
+        }
 
-impl Associate<NeedReply> {
+        Ok(Associate::new(self.stream))
+    }
+}
+
+impl Associate<state::Ready> {
+    /// Wait until the SOCKS5 client closes this TCP connection.
+    ///
+    /// Socks5 protocol defines that when the client closes the TCP connection used to send the associate command, the server should release the associated UDP socket.
+    pub async fn wait_close(&mut self) -> Result<(), Error> {
+        loop {
+            match self.stream.read(&mut [0]).await {
+                Ok(0) => break Ok(()),
+                Ok(_) => {}
+                Err(err) => break Err(err),
+            }
+        }
+    }
+}
+
+impl<S> Associate<S> {
     #[inline]
     pub(super) fn new(stream: TcpStream) -> Self {
         Self {
@@ -49,26 +76,9 @@ impl Associate<NeedReply> {
         }
     }
 
-    /// Reply to the SOCKS5 client with the given reply and address.
-    ///
-    /// If encountered an error while writing the reply, the error alongside the original `TcpStream` is returned.
-    pub async fn reply(
-        mut self,
-        reply: Reply,
-        addr: Address,
-    ) -> Result<Associate<Ready>, (Error, TcpStream)> {
-        let resp = Response::new(reply, addr);
-
-        if let Err(err) = resp.write_to(&mut self.stream).await {
-            return Err((err, self.stream));
-        }
-
-        Ok(Associate::<Ready>::new(self.stream))
-    }
-
     /// Causes the other peer to receive a read of length 0, indicating that no more data will be sent. This only closes the stream in one direction.
     #[inline]
-    pub async fn shutdown(&mut self) -> Result<(), Error> {
+    pub async fn close(&mut self) -> Result<(), Error> {
         self.stream.shutdown().await
     }
 
@@ -84,137 +94,32 @@ impl Associate<NeedReply> {
         self.stream.peer_addr()
     }
 
-    /// Reads the linger duration for this socket by getting the `SO_LINGER` option.
+    /// Returns a shared reference to the underlying stream.
     ///
-    /// For more information about this option, see [set_linger](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Connect.html#method.set_linger).
+    /// Note that this may break the encapsulation of the SOCKS5 connection and you should not use this method unless you know what you are doing.
     #[inline]
-    pub fn linger(&self) -> Result<Option<Duration>, Error> {
-        self.stream.linger()
-    }
-
-    /// Sets the linger duration of this socket by setting the `SO_LINGER` option.
-    ///
-    /// This option controls the action taken when a stream has unsent messages and the stream is closed. If `SO_LINGER` is set, the system shall block the process until it can transmit the data or until the time expires.
-    ///
-    /// If `SO_LINGER` is not specified, and the stream is closed, the system handles the call in a way that allows the process to continue as quickly as possible.
-    #[inline]
-    pub fn set_linger(&self, dur: Option<Duration>) -> Result<(), Error> {
-        self.stream.set_linger(dur)
-    }
-
-    /// Gets the value of the `TCP_NODELAY` option on this socket.
-    ///
-    /// For more information about this option, see [set_nodelay](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Connect.html#method.set_nodelay).
-    #[inline]
-    pub fn nodelay(&self) -> Result<bool, Error> {
-        self.stream.nodelay()
-    }
-
-    /// Sets the value of the `TCP_NODELAY` option on this socket.
-    ///
-    /// If set, this option disables the Nagle algorithm. This means that segments are always sent as soon as possible, even if there is only a small amount of data. When not set, data is buffered until there is a sufficient amount to send out, thereby avoiding the frequent sending of small packets.
-    pub fn set_nodelay(&self, nodelay: bool) -> Result<(), Error> {
-        self.stream.set_nodelay(nodelay)
-    }
-
-    /// Gets the value of the `IP_TTL` option for this socket.
-    ///
-    /// For more information about this option, see [set_ttl](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Connect.html#method.set_ttl).
-    pub fn ttl(&self) -> Result<u32, Error> {
-        self.stream.ttl()
-    }
-
-    /// Sets the value for the `IP_TTL` option on this socket.
-    ///
-    /// This value sets the time-to-live field that is used in every packet sent from this socket.
-    pub fn set_ttl(&self, ttl: u32) -> Result<(), Error> {
-        self.stream.set_ttl(ttl)
-    }
-}
-
-impl Associate<Ready> {
-    #[inline]
-    fn new(stream: TcpStream) -> Self {
-        Self {
-            stream,
-            _state: PhantomData,
-        }
-    }
-
-    /// Wait until the SOCKS5 client closes this TCP connection.
-    ///
-    /// Socks5 protocol defines that when the client closes the TCP connection used to send the associate command, the server should release the associated UDP socket.
-    pub async fn wait_until_closed(&mut self) -> Result<(), Error> {
-        loop {
-            match self.stream.read(&mut [0]).await {
-                Ok(0) => break Ok(()),
-                Ok(_) => {}
-                Err(err) => break Err(err),
-            }
-        }
-    }
-}
-
-impl Deref for Associate<Ready> {
-    type Target = TcpStream;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
+    pub fn get_ref(&self) -> &TcpStream {
         &self.stream
     }
-}
 
-impl DerefMut for Associate<Ready> {
+    /// Returns a mutable reference to the underlying stream.
+    ///
+    /// Note that this may break the encapsulation of the SOCKS5 connection and you should not use this method unless you know what you are doing.
     #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    pub fn get_mut(&mut self) -> &mut TcpStream {
         &mut self.stream
     }
-}
 
-impl AsyncRead for Associate<Ready> {
+    /// Consumes the [`Associate<S>`] and returns the underlying [`TcpStream`](tokio::net::TcpStream).
     #[inline]
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<Result<(), Error>> {
-        Pin::new(&mut self.stream).poll_read(cx, buf)
-    }
-}
-
-impl AsyncWrite for Associate<Ready> {
-    #[inline]
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<Result<usize, Error>> {
-        Pin::new(&mut self.stream).poll_write(cx, buf)
-    }
-
-    #[inline]
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
-        Pin::new(&mut self.stream).poll_flush(cx)
-    }
-
-    #[inline]
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
-        Pin::new(&mut self.stream).poll_shutdown(cx)
-    }
-}
-
-impl<S> From<Associate<S>> for TcpStream {
-    #[inline]
-    fn from(conn: Associate<S>) -> Self {
-        conn.stream
+    pub fn into_inner(self) -> TcpStream {
+        self.stream
     }
 }
 
 /// A wrapper of a tokio UDP socket dealing with SOCKS5 UDP header.
 ///
-/// `(UdpSocket, usize)` and `AssociatedUdpSocket` can be converted to each other with `From` trait, in which `usize` is the maximum receiving UDP packet size, with SOCKS5 UDP header included.
-///
-/// It only provides handful of methods to send / receive UDP packets with SOCKS5 UDP header. However, the underlying `UdpSocket` can be accessed with `AsRef` and `AsMut` trait, so you can use all methods provided by `UdpSocket`.
+/// It only provides handful of methods to send / receive UDP packets with SOCKS5 UDP header. The underlying `UdpSocket` can be accessed with [`AssociatedUdpSocket::get_ref()`] and [`AssociatedUdpSocket::get_mut()`].
 #[derive(Debug)]
 pub struct AssociatedUdpSocket {
     socket: UdpSocket,
@@ -222,18 +127,6 @@ pub struct AssociatedUdpSocket {
 }
 
 impl AssociatedUdpSocket {
-    /// Get the maximum receiving UDP packet size, with SOCKS5 UDP header included.
-    #[inline]
-    pub fn get_max_pkt_size(&self) -> usize {
-        self.buf_size.load(Ordering::Relaxed)
-    }
-
-    /// Set the maximum receiving UDP packet size, with SOCKS5 UDP header included, for adjusting the receiving buffer size.
-    #[inline]
-    pub fn set_max_pkt_size(&self, size: usize) {
-        self.buf_size.store(size, Ordering::Release);
-    }
-
     /// Receives a SOCKS5 UDP packet on the socket from the remote address which it is connected.
     ///
     /// On success, it returns the packet payload and the SOCKS5 UDP header. On error, it returns the error alongside an `Option<Vec<u8>>`. If the error occurs before / when receiving the raw UDP packet, the `Option<Vec<u8>>` will be `None`. Otherwise, it will be `Some(Vec<u8>)` containing the received raw UDP packet.
@@ -312,35 +205,38 @@ impl AssociatedUdpSocket {
             .await
             .map(|len| len - header.serialized_len())
     }
-}
 
-impl From<(UdpSocket, usize)> for AssociatedUdpSocket {
+    /// Get the maximum receiving UDP packet size, with SOCKS5 UDP header included.
     #[inline]
-    fn from(from: (UdpSocket, usize)) -> Self {
-        AssociatedUdpSocket {
-            socket: from.0,
-            buf_size: AtomicUsize::new(from.1),
-        }
+    pub fn get_max_pkt_size(&self) -> usize {
+        self.buf_size.load(Ordering::Acquire)
     }
-}
 
-impl From<AssociatedUdpSocket> for (UdpSocket, usize) {
+    /// Set the maximum receiving UDP packet size, with SOCKS5 UDP header included, for adjusting the receiving buffer size.
     #[inline]
-    fn from(from: AssociatedUdpSocket) -> Self {
-        (from.socket, from.buf_size.load(Ordering::Relaxed))
+    pub fn set_max_pkt_size(&self, size: usize) {
+        self.buf_size.store(size, Ordering::Release);
     }
-}
 
-impl AsRef<UdpSocket> for AssociatedUdpSocket {
+    /// Returns a shared reference to the underlying socket.
+    ///
+    /// Note that this may break the encapsulation of the SOCKS5 connection and you should not use this method unless you know what you are doing.
     #[inline]
-    fn as_ref(&self) -> &UdpSocket {
+    pub fn get_ref(&self) -> &UdpSocket {
         &self.socket
     }
-}
 
-impl AsMut<UdpSocket> for AssociatedUdpSocket {
+    /// Returns a mutable reference to the underlying socket.
+    ///
+    /// Note that this may break the encapsulation of the SOCKS5 UDP abstraction and you should not use this method unless you know what you are doing.
     #[inline]
-    fn as_mut(&mut self) -> &mut UdpSocket {
+    pub fn get_mut(&mut self) -> &mut UdpSocket {
         &mut self.socket
+    }
+
+    /// Consumes the [`AssociatedUdpSocket`] and returns the underlying [`UdpSocket`](tokio::net::UdpSocket).
+    #[inline]
+    pub fn into_inner(self) -> UdpSocket {
+        self.socket
     }
 }
