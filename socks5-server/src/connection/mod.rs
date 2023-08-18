@@ -1,6 +1,6 @@
 //! This module contains the connection abstraction of the SOCKS5 protocol.
 //!
-//! [`accept()`](https://docs.rs/socks5-server/latest/socks5_server/struct.Server.html#method.accept) on a [`Server`](https://docs.rs/socks5-server/latest/socks5_server/struct.Server.html) creates a [`IncomingConnection`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html), which is the entry point of processing a SOCKS5 connection.
+//! [`Server::accept()`] creates an [`IncomingConnection`], which is the entry point of processing a SOCKS5 connection.
 
 use self::{associate::Associate, bind::Bind, connect::Connect};
 use crate::AuthAdaptor;
@@ -10,7 +10,7 @@ use socks5_proto::{
     },
     Address, Command as ProtocolCommand, Error, ProtocolError, Request,
 };
-use std::{io::Error as IoError, net::SocketAddr, time::Duration};
+use std::{io::Error as IoError, net::SocketAddr};
 use tokio::{io::AsyncWriteExt, net::TcpStream};
 
 pub mod associate;
@@ -19,9 +19,7 @@ pub mod connect;
 
 /// A freshly established TCP connection.
 ///
-/// This may not be a valid SOCKS5 connection. You should call [`authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.authenticate) to perform a SOCKS5 authentication handshake.
-///
-/// It can also be converted back into a raw tokio [`TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) with `From` trait.
+/// This may not be a valid SOCKS5 connection. You should call [`IncomingConnection::authenticate()`] to perform a SOCKS5 authentication handshake.
 pub struct IncomingConnection<O> {
     stream: TcpStream,
     auth: AuthAdaptor<O>,
@@ -33,9 +31,9 @@ impl<O> IncomingConnection<O> {
         Self { stream, auth }
     }
 
-    /// Perform a SOCKS5 authentication handshake using the given [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) adapter.
+    /// Perform a SOCKS5 authentication handshake using the given [`Auth`] adapter.
     ///
-    /// If the handshake succeeds, an [`Authenticated`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html) alongs with the output of the [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) adapter is returned. Otherwise, the error and the original [`TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) is returned.
+    /// If the handshake succeeds, an [`Authenticated`] alongs with the output of the [`Auth`] adapter is returned. Otherwise, the error and the underlying [`tokio::net::TcpStream`] is returned.
     ///
     /// Note that this method will not implicitly close the connection even if the handshake failed.
     pub async fn authenticate(mut self) -> Result<(Authenticated, O), (Error, TcpStream)> {
@@ -75,7 +73,7 @@ impl<O> IncomingConnection<O> {
 
     /// Causes the other peer to receive a read of length 0, indicating that no more data will be sent. This only closes the stream in one direction.
     #[inline]
-    pub async fn shutdown(&mut self) -> Result<(), IoError> {
+    pub async fn close(&mut self) -> Result<(), IoError> {
         self.stream.shutdown().await
     }
 
@@ -91,66 +89,32 @@ impl<O> IncomingConnection<O> {
         self.stream.peer_addr()
     }
 
-    /// Reads the linger duration for this socket by getting the `SO_LINGER` option.
+    /// Returns a shared reference to the underlying stream.
     ///
-    /// For more information about this option, see [set_linger](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.set_linger).
+    /// Note that this may break the encapsulation of the SOCKS5 connection and you should not use this method unless you know what you are doing.
     #[inline]
-    pub fn linger(&self) -> Result<Option<Duration>, IoError> {
-        self.stream.linger()
+    pub fn get_ref(&self) -> &TcpStream {
+        &self.stream
     }
 
-    /// Sets the linger duration of this socket by setting the `SO_LINGER` option.
+    /// Returns a mutable reference to the underlying stream.
     ///
-    /// This option controls the action taken when a stream has unsent messages and the stream is closed. If `SO_LINGER` is set, the system shall block the process until it can transmit the data or until the time expires.
-    ///
-    /// If `SO_LINGER` is not specified, and the stream is closed, the system handles the call in a way that allows the process to continue as quickly as possible.
+    /// Note that this may break the encapsulation of the SOCKS5 connection and you should not use this method unless you know what you are doing.
     #[inline]
-    pub fn set_linger(&self, dur: Option<Duration>) -> Result<(), IoError> {
-        self.stream.set_linger(dur)
+    pub fn get_mut(&mut self) -> &mut TcpStream {
+        &mut self.stream
     }
 
-    /// Gets the value of the `TCP_NODELAY` option on this socket.
-    ///
-    /// For more information about this option, see [set_nodelay](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.set_nodelay).
+    /// Consumes the [`IncomingConnection`] and returns the underlying [`tokio::net::TcpStream`].
     #[inline]
-    pub fn nodelay(&self) -> Result<bool, IoError> {
-        self.stream.nodelay()
-    }
-
-    /// Sets the value of the `TCP_NODELAY` option on this socket.
-    ///
-    /// If set, this option disables the Nagle algorithm. This means that segments are always sent as soon as possible, even if there is only a small amount of data. When not set, data is buffered until there is a sufficient amount to send out, thereby avoiding the frequent sending of small packets.
-    pub fn set_nodelay(&self, nodelay: bool) -> Result<(), IoError> {
-        self.stream.set_nodelay(nodelay)
-    }
-
-    /// Gets the value of the `IP_TTL` option for this socket.
-    ///
-    /// For more information about this option, see [set_ttl](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.set_ttl).
-    pub fn ttl(&self) -> Result<u32, IoError> {
-        self.stream.ttl()
-    }
-
-    /// Sets the value for the `IP_TTL` option on this socket.
-    ///
-    /// This value sets the time-to-live field that is used in every packet sent from this socket.
-    pub fn set_ttl(&self, ttl: u32) -> Result<(), IoError> {
-        self.stream.set_ttl(ttl)
-    }
-}
-
-impl<O> From<IncomingConnection<O>> for TcpStream {
-    #[inline]
-    fn from(conn: IncomingConnection<O>) -> Self {
-        conn.stream
+    pub fn into_inner(self) -> TcpStream {
+        self.stream
     }
 }
 
 /// A TCP stream that has been authenticated.
 ///
-/// To get the command from the SOCKS5 client, use [`wait_request`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.wait_request).
-///
-/// It can also be converted back into a raw [`tokio::TcpStream`](https://docs.rs/tokio/latest/tokio/net/struct.TcpStream.html) with `From` trait.
+/// To get the command from the SOCKS5 client, use [`Authenticated::wait_request()`].
 pub struct Authenticated(TcpStream);
 
 impl Authenticated {
@@ -161,7 +125,7 @@ impl Authenticated {
 
     /// Waits the SOCKS5 client to send a request.
     ///
-    /// This method will return a [`Command`](https://docs.rs/socks5-server/latest/socks5_server/connection/enum.Command.html) if the client sends a valid command.
+    /// This method will return a [`Command`] if the client sends a valid command.
     ///
     /// When encountering an error, the stream will be returned alongside the error.
     ///
@@ -190,7 +154,7 @@ impl Authenticated {
 
     /// Causes the other peer to receive a read of length 0, indicating that no more data will be sent. This only closes the stream in one direction.
     #[inline]
-    pub async fn shutdown(&mut self) -> Result<(), IoError> {
+    pub async fn close(&mut self) -> Result<(), IoError> {
         self.0.shutdown().await
     }
 
@@ -206,58 +170,26 @@ impl Authenticated {
         self.0.peer_addr()
     }
 
-    /// Reads the linger duration for this socket by getting the `SO_LINGER` option.
+    /// Returns a shared reference to the underlying stream.
     ///
-    /// For more information about this option, see [set_linger](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.set_linger).
+    /// Note that this may break the encapsulation of the SOCKS5 connection and you should not use this method unless you know what you are doing.
     #[inline]
-    pub fn linger(&self) -> Result<Option<Duration>, IoError> {
-        self.0.linger()
+    pub fn get_ref(&self) -> &TcpStream {
+        &self.0
     }
 
-    /// Sets the linger duration of this socket by setting the `SO_LINGER` option.
+    /// Returns a mutable reference to the underlying stream.
     ///
-    /// This option controls the action taken when a stream has unsent messages and the stream is closed. If `SO_LINGER` is set, the system shall block the process until it can transmit the data or until the time expires.
-    ///
-    /// If `SO_LINGER` is not specified, and the stream is closed, the system handles the call in a way that allows the process to continue as quickly as possible.
+    /// Note that this may break the encapsulation of the SOCKS5 connection and you should not use this method unless you know what you are doing.
     #[inline]
-    pub fn set_linger(&self, dur: Option<Duration>) -> Result<(), IoError> {
-        self.0.set_linger(dur)
+    pub fn get_mut(&mut self) -> &mut TcpStream {
+        &mut self.0
     }
 
-    /// Gets the value of the `TCP_NODELAY` option on this socket.
-    ///
-    /// For more information about this option, see [set_nodelay](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.set_nodelay).
+    /// Consumes the [`Authenticated`] and returns the underlying [`tokio::net::TcpStream`].
     #[inline]
-    pub fn nodelay(&self) -> Result<bool, IoError> {
-        self.0.nodelay()
-    }
-
-    /// Sets the value of the `TCP_NODELAY` option on this socket.
-    ///
-    /// If set, this option disables the Nagle algorithm. This means that segments are always sent as soon as possible, even if there is only a small amount of data. When not set, data is buffered until there is a sufficient amount to send out, thereby avoiding the frequent sending of small packets.
-    pub fn set_nodelay(&self, nodelay: bool) -> Result<(), IoError> {
-        self.0.set_nodelay(nodelay)
-    }
-
-    /// Gets the value of the `IP_TTL` option for this socket.
-    ///
-    /// For more information about this option, see [set_ttl](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.Authenticated.html#method.set_ttl).
-    pub fn ttl(&self) -> Result<u32, IoError> {
-        self.0.ttl()
-    }
-
-    /// Sets the value for the `IP_TTL` option on this socket.
-    ///
-    /// This value sets the time-to-live field that is used in every packet sent from this socket.
-    pub fn set_ttl(&self, ttl: u32) -> Result<(), IoError> {
-        self.0.set_ttl(ttl)
-    }
-}
-
-impl From<Authenticated> for TcpStream {
-    #[inline]
-    fn from(conn: Authenticated) -> Self {
-        conn.0
+    pub fn into_inner(self) -> TcpStream {
+        self.0
     }
 }
 

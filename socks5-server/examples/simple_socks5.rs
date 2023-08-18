@@ -11,7 +11,7 @@ async fn main() -> Result<(), IoError> {
     let listener = TcpListener::bind("127.0.0.1:5000").await?;
     let auth = Arc::new(NoAuth) as Arc<_>;
 
-    let server = Server::from((listener, auth));
+    let server = Server::new(listener, auth);
 
     while let Ok((conn, _)) = server.accept().await {
         tokio::spawn(async move {

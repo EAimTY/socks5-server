@@ -1,6 +1,6 @@
-//! This module defines trait [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) and some pre-defined authentication adaptors.
+//! This module defines trait [`Auth`] and some pre-defined authentication adaptors.
 //!
-//! The process of SOCKS5 authentication can be customized by implementing [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html) trait on your own types.
+//! The process of SOCKS5 authentication can be customized by implementing [`Auth`] trait on your own types.
 
 use async_trait::async_trait;
 use socks5_proto::handshake::{

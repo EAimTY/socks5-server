@@ -27,9 +27,7 @@ pub(crate) type AuthAdaptor<O> = Arc<dyn Auth<Output = O> + Send + Sync>;
 ///
 /// This server listens on a socket and treats incoming connections as SOCKS5 connections.
 ///
-/// A `(TcpListener, Arc<dyn Auth<Output = O> + Send + Sync>)` can be converted into a `Server<O>` with `From` trait. Also, a `Server<O>` can be converted back.
-///
-/// Generic type `<O>` is the output type of the authentication adapter. See trait [`Auth`](https://docs.rs/socks5-server/latest/socks5_server/auth/trait.Auth.html).
+/// Generic `<O>` is the output type of the authentication adapter. See trait [`Auth`].
 ///
 /// # Example
 ///
@@ -42,7 +40,7 @@ pub(crate) type AuthAdaptor<O> = Arc<dyn Auth<Output = O> + Send + Sync>;
 ///     let listener = TcpListener::bind("127.0.0.1:5000").await.unwrap();
 ///     let auth = Arc::new(NoAuth) as Arc<_>;
 ///
-///     let server = Server::from((listener, auth));
+///     let server = Server::new(listener, auth);
 ///
 ///     while let Ok((conn, _)) = server.accept().await {
 ///         tokio::spawn(async move {
@@ -57,18 +55,24 @@ pub struct Server<O> {
 }
 
 impl<O> Server<O> {
-    /// Accept an [`IncomingConnection<O>`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html).
+    /// Creates a new [`Server<O>`] with a [`tokio::net::TcpListener`] and an `Arc<dyn Auth<Output = O> + Send + Sync>`.
+    #[inline]
+    pub fn new(listener: TcpListener, auth: AuthAdaptor<O>) -> Self {
+        Self { listener, auth }
+    }
+
+    /// Accept an [`IncomingConnection`].
     ///
-    /// The connection is only a freshly created TCP connection and may not be a valid SOCKS5 connection. You should call [`IncomingConnection::authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.authenticate) to perform a SOCKS5 authentication handshake.
+    /// The connection is only a freshly created TCP connection and may not be a valid SOCKS5 connection. You should call [`IncomingConnection::authenticate()`] to perform a SOCKS5 authentication handshake.
     #[inline]
     pub async fn accept(&self) -> Result<(IncomingConnection<O>, SocketAddr), Error> {
         let (stream, addr) = self.listener.accept().await?;
         Ok((IncomingConnection::new(stream, self.auth.clone()), addr))
     }
 
-    /// Polls to accept an [`IncomingConnection<O>`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html).
+    /// Polls to accept an [`IncomingConnection`].
     ///
-    /// The connection is only a freshly created TCP connection and may not be a valid SOCKS5 connection. You should call [`IncomingConnection::authenticate()`](https://docs.rs/socks5-server/latest/socks5_server/connection/struct.IncomingConnection.html#method.authenticate) to perform a SOCKS5 authentication handshake.
+    /// The connection is only a freshly created TCP connection and may not be a valid SOCKS5 connection. You should call [`IncomingConnection::authenticate()`] to perform a SOCKS5 authentication handshake.
     ///
     /// If there is no connection to accept, Poll::Pending is returned and the current task will be notified by a waker. Note that on multiple calls to poll_accept, only the Waker from the Context passed to the most recent call is scheduled to receive a wakeup.
     #[inline]
@@ -89,33 +93,25 @@ impl<O> Server<O> {
         self.listener.local_addr()
     }
 
-    /// Sets the value for the `IP_TTL` option on this socket.
+    /// Returns a shared reference to the listener.
     ///
-    /// This value sets the time-to-live field that is used in every packet sent from this socket.
+    /// Note that this may break the encapsulation of the [`Server`] and you should not use this method unless you know what you are doing.
     #[inline]
-    pub fn set_ttl(&self, ttl: u32) -> Result<(), Error> {
-        self.listener.set_ttl(ttl)
+    pub fn get_ref(&self) -> &TcpListener {
+        &self.listener
     }
 
-    /// Gets the value of the `IP_TTL` option for this socket.
+    /// Returns a mutable reference to the listener.
     ///
-    /// For more information about this option, see [set_ttl](https://docs.rs/socks5-server/latest/socks5_server/struct.Server.html#method.set_ttl).
+    /// Note that this may break the encapsulation of the [`Server`] and you should not use this method unless you know what you are doing.
     #[inline]
-    pub fn ttl(&self) -> Result<u32, Error> {
-        self.listener.ttl()
+    pub fn get_mut(&mut self) -> &mut TcpListener {
+        &mut self.listener
     }
-}
 
-impl<O> From<(TcpListener, AuthAdaptor<O>)> for Server<O> {
+    /// Consumes the [`Server<O>`] and returns the underlying [`tokio::net::TcpListener`] and `Arc<dyn Auth<Output = O> + Send + Sync>`.
     #[inline]
-    fn from((listener, auth): (TcpListener, AuthAdaptor<O>)) -> Self {
-        Self { listener, auth }
-    }
-}
-
-impl<O> From<Server<O>> for (TcpListener, AuthAdaptor<O>) {
-    #[inline]
-    fn from(server: Server<O>) -> Self {
-        (server.listener, server.auth)
+    pub fn into_inner(self) -> (TcpListener, AuthAdaptor<O>) {
+        (self.listener, self.auth)
     }
 }
