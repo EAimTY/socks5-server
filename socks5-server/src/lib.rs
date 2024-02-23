@@ -22,6 +22,8 @@ pub use crate::{
     },
 };
 
+pub use socks5_proto as proto;
+
 pub(crate) type AuthAdaptor<A> = Arc<dyn Auth<Output = A> + Send + Sync>;
 
 type ServerAcceptResult<A> = Result<

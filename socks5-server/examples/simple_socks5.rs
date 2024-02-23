@@ -1,6 +1,8 @@
-use socks5_proto::{Address, Error, Reply};
 use socks5_server::{
-    auth::NoAuth, connection::state::NeedAuthenticate, Command, IncomingConnection, Server,
+    auth::NoAuth,
+    connection::state::NeedAuthenticate,
+    proto::{Address, Error, Reply},
+    Command, IncomingConnection, Server,
 };
 use std::{io::Error as IoError, sync::Arc};
 use tokio::{
