@@ -94,7 +94,7 @@ impl Address {
         }
     }
 
-    pub const fn unspecified() -> Self {
+    pub fn unspecified() -> Self {
         Address::SocketAddress(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0))
     }
 
