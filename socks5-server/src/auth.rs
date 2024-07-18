@@ -58,13 +58,15 @@ impl NoAuth {
 
 #[async_trait]
 impl Auth for NoAuth {
-    type Output = ();
+    type Output = Result<bool, PasswordError>;
 
     fn as_handshake_method(&self) -> Method {
         Method::NONE
     }
 
-    async fn execute(&self, _: &mut TcpStream) -> Self::Output {}
+    async fn execute(&self, _: &mut TcpStream) -> Self::Output {
+        Ok(true)
+    }
 }
 
 /// Using username and password to authenticate.
