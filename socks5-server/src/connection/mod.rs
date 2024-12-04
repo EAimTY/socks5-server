@@ -105,7 +105,7 @@ impl<A> IncomingConnection<A, state::NeedCommand> {
 
 impl<A, S> IncomingConnection<A, S> {
     #[inline]
-    pub(crate) fn new(stream: TcpStream, auth: AuthAdaptor<A>) -> Self {
+    pub fn new(stream: TcpStream, auth: AuthAdaptor<A>) -> Self {
         Self {
             stream,
             auth,
