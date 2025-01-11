@@ -11,10 +11,10 @@ license = "GPL-3.0-or-later"
 repository = "https://github.com/EAimTY/socks5-server"
 
 [dependencies]
-async-trait = { version = "0.1.79", default-features = false }
-bytes = { version = "1.6.0", default-features = false, features = ["std"] }
-socks5-proto = { path = "../socks5-proto", default-features = false }
-tokio = { version = "1.37.0", default-features = false, features = ["net"] }
+async-trait = { version = "0.1.85", default-features = false }
+bytes = { version = "1.9.0", default-features = false, features = ["std"] }
+socks5-proto = { version = "0.4.1", default-features = false }
+tokio = { version = "1.43.0", default-features = false, features = ["net"] }
 
 [dev-dependencies]
-tokio = { version = "1.37.0", default-features = false, features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.43.0", default-features = false, features = ["macros", "rt-multi-thread"] }
